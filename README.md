@@ -41,7 +41,7 @@ Required:
 - `PUBLIC_CONTACT_LABEL`
 - `PUBLIC_CONTACT_URL_TEMPLATE`
 
-`PUBLIC_CONTACT_URL_TEMPLATE` supports `{title}` and `{url}` placeholders. URL-encoded placeholders like `%7Btitle%7D` and `%7Burl%7D` are also handled.
+`PUBLIC_CONTACT_URL_TEMPLATE` supports `{title}` and `{url}` placeholders. URL-encoded placeholders like `%7Btitle%7D` and `%7Burl%7D` are also handled. For WhatsApp, use a `wa.me` URL with your phone number in international format without the leading `+`, spaces, or punctuation.
 
 `ORIGIN` must match the browser origin used to access the app, for example `http://localhost:3000` for local Docker Compose or `https://dibs.example.com` in production. SvelteKit uses this for CSRF protection on admin form posts.
 
@@ -109,7 +109,7 @@ BODY_SIZE_LIMIT=10M
 PUBLIC_SITE_URL=https://your-dibs-domain.example
 ORIGIN=https://your-dibs-domain.example
 PUBLIC_CONTACT_LABEL=Message owner
-PUBLIC_CONTACT_URL_TEMPLATE=mailto:owner@example.com?subject=Dibs%20item&body=Hi%2C%20I%27m%20interested%20in%20the%20%7Btitle%7D%3A%20%7Burl%7D
+PUBLIC_CONTACT_URL_TEMPLATE=https://wa.me/15555555555?text=Hi%2C%20I%27m%20interested%20in%20the%20%7Btitle%7D%3A%20%7Burl%7D
 ```
 
 ## Quality Checks
