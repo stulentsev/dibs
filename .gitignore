@@ -4,5 +4,5 @@ build
 .env
 .env.*
 !.env.example
-uploads
+/uploads
 dist
