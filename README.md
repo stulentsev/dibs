@@ -88,7 +88,7 @@ That means the same image can run directly in Coolify without Docker Compose, as
 Coolify setup:
 
 - Create a PostgreSQL resource in Coolify.
-- Deploy this repository as a Dockerfile-based app.
+- For GitHub Actions deploys, deploy a Docker Image app using `ghcr.io/stulentsev/dibs:latest`.
 - Expose internal port `3000`.
 - Set `DATABASE_URL` to the PostgreSQL resource connection string.
 - Set `ORIGIN` and `PUBLIC_SITE_URL` to the public HTTPS URL for the app.
@@ -96,6 +96,19 @@ Coolify setup:
 - Set `BODY_SIZE_LIMIT=10M` or larger if you want to allow bigger image upload requests.
 - Add a persistent volume mounted at `/app/uploads`.
 - Uploaded photos are written under `UPLOAD_DIR`, so they persist across rebuilds as long as the volume remains mounted.
+
+### GitHub Actions Deploy Handoff
+
+The publish workflow (`.github/workflows/publish-image.yml`) pushes the image to GHCR and then triggers a Coolify redeploy when Coolify secrets are configured. If the Coolify secrets are absent, the GHCR publish still succeeds and the deploy step is skipped.
+
+Repository secrets for the Coolify deploy handoff:
+
+- `COOLIFY_WEBHOOK`: Deploy webhook URL from the Coolify app's Webhook page.
+- `COOLIFY_TOKEN`: Coolify API token with deploy permission.
+
+The container image referenced by your Coolify app should stay aligned with this repository image (`ghcr.io/stulentsev/dibs:latest`).
+
+If you choose to let Coolify build the repository directly instead, deploy this repository as a Dockerfile-based app and use the same environment and volume settings.
 
 Required app environment variables for Coolify:
 
