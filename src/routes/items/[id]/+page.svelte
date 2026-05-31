@@ -1,0 +1,50 @@
+<script lang="ts">
+  import { formatPrice, formatStatus } from '$lib/format';
+
+  let { data } = $props();
+</script>
+
+<svelte:head>
+  <title>{data.item.title} - dibs</title>
+  <meta name="description" content={data.item.description} />
+</svelte:head>
+
+<main class="shell">
+  <header class="site-header">
+    <a class="brand" href="/">dibs</a>
+    <a class="admin-link" href="/">Back</a>
+  </header>
+
+  <article class="detail">
+    <div class="gallery">
+      {#if data.photos.length}
+        {#each data.photos as photo}
+          <img src={photo.path} alt={photo.altText || data.item.title} />
+        {/each}
+      {:else}
+        <div class="placeholder large">No photo</div>
+      {/if}
+    </div>
+
+    <section class="detail-body">
+      <div class="detail-heading">
+        <h1>{data.item.title}</h1>
+        <strong>{formatPrice(data.item)}</strong>
+      </div>
+      <div class="meta-row">
+        {#if data.item.category}<span>{data.item.category}</span>{/if}
+        <span>{formatStatus(data.item.status)}</span>
+      </div>
+      <p>{data.item.description}</p>
+
+      {#if data.item.pickupNotes}
+        <h2>Pickup</h2>
+        <p>{data.item.pickupNotes}</p>
+      {/if}
+
+      <a class="button primary" href={data.contactUrl} rel="noreferrer" target="_blank">
+        {data.contactLabel}
+      </a>
+    </section>
+  </article>
+</main>

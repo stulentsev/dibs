@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dibs
+      POSTGRES_PASSWORD: dibs
+      POSTGRES_DB: dibs
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dibs -d dibs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://dibs:dibs@postgres:5432/dibs
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-owner@example.com}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH before running docker compose}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET before running docker compose}
+      UPLOAD_DIR: /app/uploads
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-10M}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-http://localhost:3000}
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      PUBLIC_CONTACT_LABEL: ${PUBLIC_CONTACT_LABEL:-Message owner}
+      PUBLIC_CONTACT_URL_TEMPLATE: ${PUBLIC_CONTACT_URL_TEMPLATE:-mailto:owner@example.com?subject=Dibs%20item&body=Hi%2C%20I%27m%20interested%20in%20the%20%7Btitle%7D%3A%20%7Burl%7D}
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  postgres_data:
+  uploads_data:
