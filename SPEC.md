@@ -1,444 +1,372 @@
-SYSTEM SPEC: dibs MVP
+# SYSTEM SPEC: dibs MVP
 
-You are building a web application called “dibs”.
+This document is the authoritative specification for `dibs`.
 
-This document is your authoritative system specification.
-
-Do not treat this as a single implementation task.
-You will implement this system incrementally, in phases.
+`dibs` is a small self-hosted garage sale catalog for personal neighborhood use. It is not a marketplace, does not process payments, and does not provide user accounts or in-app messaging.
 
-You must:
+The system owner can manage listings through a protected admin area. Public visitors can browse published items and use an external contact link configured by environment variables.
 
-follow the rules and invariants defined here
-avoid introducing unnecessary complexity
-prioritize correctness of reservation logic
-optimize for a mobile-first user experience
-1. Objective
+## 1. Product Scope
 
-Build a minimal web app that allows users to:
+Build a minimal app that allows the owner to:
 
-browse a list of items
-temporarily reserve (“dibs”) items for a fixed time window
-see which items are reserved or available
+- list spring-cleaning items to sell or give away
+- upload and order item photos
+- publish or hide listings
+- mark item state as draft, available, claimed, sold, given away, or hidden
 
-The system owner (admin) can:
+Public visitors can:
 
-manage items
-mark items as no longer available (“gone”)
+- browse published available items
+- view item details and photos
+- use a configurable contact button that opens an external chat, email, or other URL
 
-There is:
+Public visitors cannot:
 
-no purchasing
-no checkout
-no user-side claim flow
-2. System constraints (non-negotiable)
+- create, edit, delete, reserve, or claim items in the app
+- log in or create accounts
+- message the owner inside the app
 
-You must adhere to these constraints:
+## 2. Reconciled Decisions
 
-Runtime & language
-Use Bun
-Use TypeScript
-Database
-Use SQLite
-Use a single database file
-Deployment
-Must run as a single Docker container
-Must be compatible with Coolify
-Must support persistent storage for:
-SQLite database
-uploaded images
-Infrastructure
+This spec replaces the earlier reservation-focused version of the project.
 
-Do NOT introduce:
+The following older ideas are intentionally out of scope:
 
-Redis
-external databases
-message queues
-background workers outside the main process
-microservices
-third-party authentication
-3. Core entities
+- Bun runtime requirement
+- SQLite single-file database
+- user-side "dibs" reservations
+- reservation expiry
+- lightweight visitor identity
+- max-active-reservation rules
+- no-consecutive-re-reservation rules
+- WebSocket or polling-based reservation updates
+- item links as a core entity
 
-You must model the following entities.
+The current app keeps the name `dibs`, but "dibs" is now a simple catalog name, not an in-app reservation mechanism.
 
-3.1 Item
+## 3. Technical Stack
 
-Represents a listed object.
+Use:
 
-Fields (conceptual):
+- SvelteKit
+- TypeScript
+- Vite/SvelteKit build pipeline
+- `@sveltejs/adapter-node`
+- PostgreSQL
+- Drizzle ORM
+- local disk uploads through a mounted Docker volume
+- Dockerfile suitable for production
+- `docker-compose.yml` for local testing
+- Coolify-compatible container deployment
 
-id
-title
-description
-price
-status (available, reserved, gone)
-timestamps
-3.2 ItemImage
-id
-item_id
-file path or URL
-sort order
+Do not use:
 
-An item can have multiple images.
+- Vercel-specific features or assumptions
+- Next.js
+- hosted Supabase services
+- in-app messaging
+- neighbor or public user accounts
+- Redis, queues, or extra services beyond the app and PostgreSQL
 
-3.3 ItemLink
-id
-item_id
-label
-URL
+## 4. Runtime and Deployment
 
-An item can have multiple external links.
+Production must run the SvelteKit Node build with:
 
-3.4 User (lightweight)
-id
-session identifier (persistent)
-optional nickname
-timestamps
+```sh
+node build
+```
 
-This is NOT a full authentication system.
+The Docker build should run type checking before building unless there is a strong reason not to.
 
-3.5 Reservation
-id
-item_id
-user_id
-status (active, expired, etc.)
-reserved_at
-reserved_until
-expired_at (nullable)
+The app must be deployable with Docker Compose-compatible service definitions and be practical to run in Coolify.
 
-You must preserve reservation history.
+Persistent storage is required for:
 
-4. Core states
+- PostgreSQL data
+- uploaded item photos
 
-Each item must be in exactly one state:
+Uploads must survive container rebuilds through a mounted volume, normally mounted at:
 
-available
-reserved
-gone
+```sh
+/app/uploads
+```
 
-Definitions:
+## 5. Environment Variables
 
-available: can be reserved
-reserved: currently held by a user
-gone: manually marked unavailable by admin
+Required:
 
-There is NO “claimed” state.
+- `DATABASE_URL`
+- `ADMIN_EMAIL` or `ADMIN_USERNAME`
+- `ADMIN_PASSWORD_HASH`
+- `SESSION_SECRET`
+- `UPLOAD_DIR`
+- `PUBLIC_SITE_URL`
+- `PUBLIC_CONTACT_LABEL`
+- `PUBLIC_CONTACT_URL_TEMPLATE`
 
-5. Reservation rules (critical)
+`PUBLIC_CONTACT_URL_TEMPLATE` should support interpolation for the item title and URL. For example:
 
-These rules are the most important part of the system.
+```txt
+https://wa.me/15555555555?text=Hi%2C%20I%27m%20interested%20in%20the%20%7Btitle%7D%3A%20%7Burl%7D
+```
 
-You must enforce them strictly.
+The app should replace:
 
-5.1 Reservation duration
-Default: 30 minutes
-5.2 Eligibility
+- `{title}` with the item title
+- `{url}` with the public item URL
 
-A user may only reserve an item if:
+## 6. Data Model
 
-item is available
-user has fewer than 3 active reservations
-user is not violating rule 5.5
-5.3 Exclusivity
-Only one active reservation per item at any time
-5.4 Expiry
+### 6.1 items
 
-When reserved_until passes:
+Represents one catalog listing.
 
-reservation becomes inactive
-item becomes available
-unless item is already gone
-5.5 No consecutive re-reservation
+Fields:
 
-A user may NOT reserve the same item twice in a row.
+- `id`
+- `title`
+- `description`
+- `price_cents` nullable
+- `is_free` boolean
+- `status` enum: `draft`, `available`, `claimed`, `sold`, `given_away`, `hidden`
+- `category` nullable
+- `pickup_notes` nullable
+- `published` boolean
+- `created_at`
+- `updated_at`
 
-If:
+Public visibility rules:
 
-user A reserves item X
-reservation expires
+- only published items may appear publicly
+- hidden items must never appear publicly
+- draft items must never appear publicly
+- public homepage should show published available items
+- item detail pages must not expose unpublished, draft, or hidden items
 
-Then:
+### 6.2 item_photos
 
-user A cannot reserve item X again immediately
+Represents an uploaded item photo.
 
-User A may reserve item X again only if:
+Fields:
 
-another user has held a reservation on item X in the meantime
-5.6 Max active reservations
-A user may have at most 3 active reservations
-5.7 Admin override
-Admin can mark any item as gone at any time
-Admin actions are NOT blocked by reservation rules
-6. Invariants (must always hold)
+- `id`
+- `item_id`
+- `path`
+- `alt_text` nullable
+- `sort_order`
+- `created_at`
 
-You must design the system so these are always true:
+An item can have multiple photos.
 
-At most one active reservation per item
-A user has at most 3 active reservations
-The last reserver cannot immediately re-reserve
-Item status reflects actual reservation state
-Expiry is based on server time, not client
-UI is NOT authoritative; server/database is authoritative
-7. Reservation correctness requirements
+The first photo by `sort_order` is the default card image unless thumbnails are implemented.
 
-You must handle:
+## 7. Public Catalog
 
-Race conditions
-If two users try to reserve simultaneously:
-only one succeeds
-the other fails cleanly
-Expired-but-not-cleaned reservations
-System must treat expired reservations as inactive
-even if cleanup hasn’t run yet
-Atomicity
-Reservation creation must be atomic at DB level
-8. User identity
+Required routes:
 
-You must implement lightweight identity:
+- `/` public homepage with published available items
+- `/items/[id]` public item detail page
 
-generate persistent session ID
-store in cookie or local storage
-reuse across requests
+Public item cards must show:
 
-Optional:
+- title
+- thumbnail or first photo
+- price/free label
+- category, when present
+- status
 
-allow user to set nickname
+Item detail pages must show:
 
-Users must be able to:
+- title
+- description
+- price/free label
+- category, when present
+- pickup notes, when present
+- photo gallery
+- status
+- configurable contact button
 
-reserve items
-view their active reservations
+Contact behavior:
 
-Do NOT implement:
+- no in-app messaging
+- contact button uses `PUBLIC_CONTACT_LABEL`
+- contact button URL is generated from `PUBLIC_CONTACT_URL_TEMPLATE`
+- default message should resemble:
 
-login/signup
-passwords
-OAuth
-9. Admin capabilities
+```txt
+Hi, I'm interested in the [item title]: [item URL]
+```
 
-Admin must be able to:
+## 8. Admin Area
 
-create items
-edit items
-delete items
-upload multiple images
-manage image order
-add/remove external links
-mark item as gone
-optionally revert to available
-view reservations
-Admin auth
+Required routes:
 
-Implement minimal auth:
+- `/admin/login`
+- `/admin`
+- admin item create/edit/delete routes or equivalent actions
 
-password or secret-based access
-configured via environment variables
-10. UI requirements
-General
-mobile-first design
-fast loading
-simple layout
-clear actions
-Public UI
+Admin area requirements:
 
-Must include:
+- protected by password-based login
+- single admin user is enough
+- password must be checked against a secure hash
+- admin sessions must use signed HTTP-only cookies
+- admin routes must require authentication
 
-item list/grid
-item detail view
-image gallery (mobile-friendly)
-clear status display
-“Dibs” button
-“My reservations” view
-Status visibility
+Admin can:
 
-Must be obvious:
+- create item
+- edit item
+- delete item
+- upload photos
+- delete photos
+- reorder photos when reasonable
+- edit photo alt text when reasonable
+- mark item as draft, available, claimed, sold, given away, or hidden
+- toggle `published`
 
-available
-reserved
-gone
-Mobile requirements
-large tap targets
-minimal scrolling friction
-responsive images
-stable layout
-11. Real-time behavior
+## 9. Uploads and File Handling
 
-You should support near real-time updates.
+Store uploaded files on local disk under `UPLOAD_DIR`.
 
-Required behavior:
+Required validation:
 
-reservation updates propagate to other clients
-expiry updates propagate
-admin changes propagate
+- allow jpg, jpeg, png, and webp
+- reject other file types
+- enforce a maximum upload size
+- prevent path traversal
+- generate unique server-side filenames
 
-Preferred:
+Serving requirements:
 
-WebSockets
+- uploaded files are served by the app
+- uploaded paths must not allow access outside `UPLOAD_DIR`
 
-Fallback:
+Thumbnail requirement:
 
-polling
+- generating thumbnails is preferred if practical
+- using the first uploaded image as the card image is acceptable for the MVP
 
-System must still function correctly without real-time updates.
+## 10. Security Basics
 
-12. File handling
+Required:
 
-You must support:
+- secure admin password hashing with argon2 or bcrypt
+- signed HTTP-only admin session cookie
+- server-side validation for all forms
+- upload validation by type and size
+- path traversal protection for uploaded filenames and served files
+- no public access to unpublished, draft, or hidden items
+- no public write actions
+- admin route protection
+- avoid leaking stack traces in production
 
-multiple images per item
-persistent storage (disk / mounted volume)
+CSRF protection should be considered for admin form actions. SameSite cookies and server-side auth checks are required at minimum.
 
-Keep it simple:
+## 11. UI Requirements
 
-no external storage service
-no complex processing pipeline
-13. Expiration strategy
+The UI should be:
 
-You must NOT rely on external schedulers.
+- mobile-first
+- clean and simple
+- easy to scan in a neighborhood chat context
+- usable without a complex design system
 
-Use a combination of:
+Use basic CSS or a minimal styling setup. Tailwind is acceptable only if it keeps the project simple.
 
-reserved_until timestamps
-lazy expiry checks during reads/writes
-optional in-process periodic cleanup
-14. Implementation strategy
+Avoid:
 
-You must NOT build everything at once.
+- marketing-site structure
+- complicated dashboards
+- unnecessary animation
+- heavy component abstractions
 
-You must proceed in phases.
+## 12. Build and Quality Commands
 
-15. Implementation phases
-Phase 0 — Project setup
+Required npm scripts:
 
-Goal:
+- `npm run check` using `svelte-check`
+- `npm run build`
+- Drizzle migration generation script
+- Drizzle migration apply script
+- optional seed script with sample items
 
-working Bun + TypeScript app
-Docker setup
-SQLite initialization
-Phase 1 — Data model
+TypeScript should be used throughout.
 
-Goal:
+## 13. Database and Migrations
 
-define schema
-create tables
-establish DB access layer
-Phase 2 — Reservation domain logic (highest priority)
+Use Drizzle ORM with PostgreSQL.
 
-Goal:
+Required:
 
-implement reservation rules independently of UI
+- schema definitions
+- migration generation setup
+- migration apply script
+- database access layer
+- optional seed script with a few sample items
 
-Must include:
+Migrations must be suitable for local Docker Compose and Coolify deployment workflows.
 
-reserve item function
-validation rules
-anti-hoarding logic
-expiry handling
-atomic DB operations
+## 14. Docker and Coolify
 
-Do NOT proceed to UI before this is correct.
+Provide:
 
-Phase 3 — Public UI
+- production Dockerfile
+- `docker-compose.yml` for local testing
+- app service
+- postgres service
+- persistent postgres volume
+- persistent uploads volume
 
-Goal:
+Coolify deployment notes must explain:
 
-browsing and reserving items
-Phase 4 — User identity
+- required environment variables
+- PostgreSQL service requirement
+- mounted upload volume requirement
+- migration command or startup procedure
+- how image uploads persist across rebuilds
 
-Goal:
+## 15. README Requirements
 
-persistent session-based user tracking
-Phase 5 — Admin UI
+README must include:
 
-Goal:
+- local development setup
+- environment variables
+- database migration commands
+- Docker Compose usage
+- high-level Coolify deployment notes
+- how to create `ADMIN_PASSWORD_HASH`
+- upload volume notes
 
-full item management
-Phase 6 — Real-time updates
+## 16. Implementation Phases
 
-Goal:
+Build the system incrementally:
 
-synchronize clients
-Phase 7 — Polish
+1. Project setup: SvelteKit, TypeScript, adapter-node, scripts
+2. Database: Drizzle schema, migrations, connection layer
+3. Admin auth: password hash verification and signed session cookie
+4. Public catalog: homepage and item detail pages
+5. Admin CRUD: item management and status publishing controls
+6. Uploads: local image validation, storage, serving, and photo ordering
+7. Docker: Dockerfile, Compose, volume wiring
+8. Documentation: README, environment variables, Coolify notes
+9. Polish: validation hardening, responsive layout, seed data
 
-Goal:
+## 17. Definition of Done
 
-stability, UX improvements, deployment readiness
-16. Prompting rules (for future tasks)
+The MVP is complete when:
 
-When implementing features:
-
-16.1 Scope strictly
-
-Each task must target ONE of:
-
-schema
-reservation logic
-UI
-admin
-real-time
-deployment
-16.2 Restate rules
-
-Each feature must explicitly respect:
-
-max 3 reservations
-no consecutive reservation
-one active reservation per item
-16.3 Prefer design → then code
-
-For complex logic:
-
-first define approach
-then implement
-16.4 Handle edge cases explicitly
-
-Always consider:
-
-race conditions
-expired reservations
-duplicate actions
-missing user identity
-16.5 Avoid stack creep
-
-Do NOT introduce:
-
-new services
-unnecessary frameworks
-extra infrastructure
-17. Failure modes to avoid
-
-You must avoid:
-
-storing reservation only on item (loses history)
-allowing multiple active reservations
-letting same user re-reserve immediately
-relying on client timers for correctness
-mixing business logic into UI
-overengineering infrastructure
-18. Definition of done (MVP)
-
-The system is complete when:
-
-admin can manage items
-items support multiple images
-items support external links
-users can reserve items
-reservations expire correctly
-no item can be double-reserved
-max 3 reservations per user is enforced
-no consecutive re-reservation is enforced
-real-time or near-real-time updates work
-system runs in a single Docker container with SQLite
-19. Execution directive
-
-You must:
-
-treat this document as the source of truth
-implement the system incrementally
-validate correctness at each phase
-prioritize reservation logic correctness over UI polish
-
-Do not attempt to generate the entire system in one step.
-
-Break work into small, verifiable units.
-
+- public users can browse published available items
+- public users can view item details and use the configured contact button
+- public users cannot write data
+- admin can log in
+- admin can create, edit, delete, publish, hide, and change item status
+- admin can upload and manage multiple item photos
+- uploaded images persist through container rebuilds
+- unpublished, draft, and hidden items are not exposed publicly
+- PostgreSQL schema and migrations are present
+- SvelteKit build and type checking pass
+- app runs with `node build`
+- Docker Compose starts app and PostgreSQL with persistent volumes
+- README documents local development and Coolify deployment
