@@ -130,4 +130,7 @@ PUBLIC_CONTACT_URL_TEMPLATE=https://wa.me/15555555555?text=Hi%2C%20I%27m%20inter
 ```sh
 pnpm check
 pnpm build
+pnpm test:e2e
 ```
+
+`pnpm test:e2e` expects PostgreSQL to be reachable at `postgres://dibs:dibs@localhost:5432/dibs_e2e` by default. Override it with `E2E_DATABASE_URL` if your local test database is elsewhere. The E2E setup resets that database schema before running.

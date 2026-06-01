@@ -7,3 +7,6 @@ build
 !.env.example
 /uploads
 dist
+test-results
+playwright-report
+tmp

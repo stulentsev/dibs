@@ -1,0 +1,44 @@
+import { expect, test } from '@playwright/test';
+import { resetCatalog } from './db';
+
+test.beforeEach(async () => {
+  await resetCatalog();
+});
+
+test('visitors can see available items in the public catalog', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Available items' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Oak side table/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Box of plant pots/ })).toBeVisible();
+  await expect(page.getByText('Furniture')).toBeVisible();
+  await expect(page.getByText('Garden')).toBeVisible();
+
+  await expect(page.getByText('Desk lamp')).toHaveCount(0);
+  await expect(page.getByText('Reading chair')).toHaveCount(0);
+});
+
+test('visitors can open an item and see its details', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: /Oak side table/ }).click();
+
+  await expect(page).toHaveURL(/\/items\/\d+$/);
+  await expect(page.getByRole('heading', { name: 'Oak side table' })).toBeVisible();
+  await expect(page.getByText('€25')).toBeVisible();
+  await expect(page.getByText('Small solid wood side table with a few surface marks.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pickup' })).toBeVisible();
+  await expect(page.getByText('Porch pickup after 6pm.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Message owner' })).toHaveAttribute(
+    'href',
+    /example\.com\/contact.*Oak%20side%20table/
+  );
+});
+
+test('published non-draft item details are reachable even when not available', async ({ page }) => {
+  const items = await resetCatalog();
+
+  await page.goto(`/items/${items.claimedChair}`);
+
+  await expect(page.getByRole('heading', { name: 'Reading chair' })).toBeVisible();
+  await expect(page.getByText('Claimed')).toBeVisible();
+});
