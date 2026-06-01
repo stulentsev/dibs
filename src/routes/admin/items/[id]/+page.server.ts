@@ -61,7 +61,7 @@ export const actions = {
     try {
       form = await request.formData();
     } catch {
-      return fail(413, { errors: ['Photo upload request is too large for the server limit.'] });
+      return fail(413, { errors: ['Photo upload request is too large for BODY_SIZE_LIMIT. Set it to 30M or higher.'] });
     }
 
     const files = form.getAll('photos').filter((value): value is File => value instanceof File && value.size > 0);

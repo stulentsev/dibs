@@ -14,6 +14,7 @@ RUN pnpm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
+ENV BODY_SIZE_LIMIT=30M
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 COPY --from=builder /app/build ./build
