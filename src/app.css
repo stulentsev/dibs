@@ -201,6 +201,12 @@ h2 {
   margin: 0;
 }
 
+.card-description {
+  margin: 8px 0 12px;
+  color: #4f565d;
+  font-size: 0.95rem;
+}
+
 .card-title-row span,
 .detail-heading strong {
   color: #0f6b4d;

@@ -36,6 +36,7 @@
               <h2>{item.title}</h2>
               <span>{formatPrice(item)}</span>
             </div>
+            <p class="card-description">{item.description}</p>
             <div class="meta-row">
               {#if item.category}<span>{item.category}</span>{/if}
               <span>{formatStatus(item.status)}</span>

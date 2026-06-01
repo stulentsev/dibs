@@ -11,6 +11,8 @@ test('visitors can see available items in the public catalog', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Available items' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Oak side table/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Box of plant pots/ })).toBeVisible();
+  await expect(page.getByText('Small solid wood side table with a few surface marks.')).toBeVisible();
+  await expect(page.getByText('Mixed ceramic and plastic pots from a spring clean.')).toBeVisible();
   await expect(page.getByText('Furniture')).toBeVisible();
   await expect(page.getByText('Garden')).toBeVisible();
 
