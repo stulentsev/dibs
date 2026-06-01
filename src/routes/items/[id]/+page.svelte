@@ -42,9 +42,14 @@
         <p>{data.item.pickupNotes}</p>
       {/if}
 
-      <a class="button primary" href={data.contactUrl} rel="noreferrer" target="_blank">
-        {data.contactLabel}
-      </a>
+      <div class="detail-actions">
+        <a class="button primary" href={data.contactUrl} rel="noreferrer" target="_blank">
+          {data.contactLabel}
+        </a>
+        {#if data.admin}
+          <a class="button" href={`/admin/items/${data.item.id}`}>Manage</a>
+        {/if}
+      </div>
     </section>
   </article>
 </main>

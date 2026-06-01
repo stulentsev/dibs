@@ -1,9 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { requireAdmin } from '$lib/server/auth';
 import { createItem } from '$lib/server/db/queries';
 import { parseItemForm } from '$lib/server/forms';
 
 export const actions = {
-  default: async ({ request }) => {
+  default: async ({ request, locals }) => {
+    requireAdmin(locals);
+
     const form = await request.formData();
     const parsed = parseItemForm(form);
 

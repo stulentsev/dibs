@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { Cookies } from '@sveltejs/kit';
+import { redirect, type Cookies } from '@sveltejs/kit';
 import { env, getAdminIdentifier } from './config';
 
 const cookieName = 'dibs_admin';
@@ -50,6 +50,11 @@ export function verifySessionCookie(token: string, identifier: string): boolean 
   } catch {
     return false;
   }
+}
+
+export function requireAdmin(locals: App.Locals): App.Locals['admin'] {
+  if (!locals.admin) redirect(303, '/admin/login');
+  return locals.admin;
 }
 
 export function setSessionCookie(cookies: Cookies, identifier: string, secure: boolean): void {

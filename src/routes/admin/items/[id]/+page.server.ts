@@ -1,4 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
+import { requireAdmin } from '$lib/server/auth';
 import {
   deleteItem,
   deletePhoto,
@@ -18,14 +19,18 @@ function parseItemId(param: string): number {
   return id;
 }
 
-export async function load({ params }) {
+export async function load({ params, locals }) {
+  requireAdmin(locals);
+
   const record = await getAdminItem(parseItemId(params.id));
   if (!record) error(404, 'Item not found');
   return record;
 }
 
 export const actions = {
-  update: async ({ request, params }) => {
+  update: async ({ request, params, locals }) => {
+    requireAdmin(locals);
+
     const id = parseItemId(params.id);
     const form = await request.formData();
     const parsed = parseItemForm(form);
@@ -38,7 +43,9 @@ export const actions = {
     return { success: 'Item saved.' };
   },
 
-  deleteItem: async ({ params }) => {
+  deleteItem: async ({ params, locals }) => {
+    requireAdmin(locals);
+
     const id = parseItemId(params.id);
     const photos = await listPhotos(id);
     await deleteItem(id);
@@ -46,7 +53,9 @@ export const actions = {
     redirect(303, '/admin');
   },
 
-  uploadPhotos: async ({ request, params }) => {
+  uploadPhotos: async ({ request, params, locals }) => {
+    requireAdmin(locals);
+
     const id = parseItemId(params.id);
     const form = await request.formData();
     const files = form.getAll('photos').filter((value): value is File => value instanceof File && value.size > 0);
@@ -69,7 +78,9 @@ export const actions = {
     return { success: 'Photos uploaded.' };
   },
 
-  deletePhoto: async ({ request, params }) => {
+  deletePhoto: async ({ request, params, locals }) => {
+    requireAdmin(locals);
+
     const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
@@ -81,7 +92,9 @@ export const actions = {
     return { success: 'Photo deleted.' };
   },
 
-  updatePhotoAlt: async ({ request, params }) => {
+  updatePhotoAlt: async ({ request, params, locals }) => {
+    requireAdmin(locals);
+
     const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
@@ -93,7 +106,9 @@ export const actions = {
     return { success: 'Photo updated.' };
   },
 
-  movePhoto: async ({ request, params }) => {
+  movePhoto: async ({ request, params, locals }) => {
+    requireAdmin(locals);
+
     const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
