@@ -2,6 +2,7 @@ node_modules
 .svelte-kit
 build
 .env
+.envrc
 .env.*
 !.env.example
 /uploads
