@@ -27,7 +27,7 @@ export default defineConfig({
       ADMIN_PASSWORD_HASH: '$2b$10$LHZd5YjLu078d/JBmcNSeeye3.mDdazvPHi1WQGOSnc5IQJNN3phm',
       SESSION_SECRET: 'e2e-session-secret-at-least-32-characters',
       UPLOAD_DIR: './tmp/e2e-uploads',
-      BODY_SIZE_LIMIT: '10M',
+      BODY_SIZE_LIMIT: '30M',
       PUBLIC_SITE_URL: baseURL,
       ORIGIN: baseURL,
       PUBLIC_CONTACT_LABEL: 'Message owner',

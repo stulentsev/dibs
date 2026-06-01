@@ -86,6 +86,29 @@ test('admin can change status from the item details page', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Oak side table/ })).toHaveCount(0);
 });
 
+test('admin can upload a PNG photo', async ({ page }) => {
+  const items = await resetCatalog();
+  await logIn(page);
+
+  await page.goto(`/admin/items/${items.table}`);
+  await page.locator('input[name="photos"]').setInputFiles({
+    name: 'tiny.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+      'base64'
+    )
+  });
+  await page.getByRole('button', { name: 'Upload' }).click();
+
+  await expect(page.getByText('Photos uploaded.')).toBeVisible();
+  const resized = page.locator('img[src$=".webp"]');
+  await expect(resized).toBeVisible();
+
+  const response = await page.request.get(await resized.getAttribute('src') ?? '');
+  expect(response.headers()['content-type']).toContain('image/webp');
+});
+
 test('admin can delete an item', async ({ page }) => {
   await logIn(page);
 

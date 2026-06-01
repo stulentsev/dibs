@@ -234,7 +234,8 @@ Required validation:
 
 - allow jpg, jpeg, png, and webp
 - reject other file types
-- enforce a maximum upload size
+- enforce a 25 MB maximum source upload size
+- resize uploaded images to a mobile-friendly display size
 - prevent path traversal
 - generate unique server-side filenames
 

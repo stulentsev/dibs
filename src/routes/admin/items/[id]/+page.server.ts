@@ -57,7 +57,13 @@ export const actions = {
     requireAdmin(locals);
 
     const id = parseItemId(params.id);
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return fail(413, { errors: ['Photo upload request is too large for the server limit.'] });
+    }
+
     const files = form.getAll('photos').filter((value): value is File => value instanceof File && value.size > 0);
 
     if (files.length === 0) {

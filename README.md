@@ -35,7 +35,7 @@ Required:
 - `ADMIN_PASSWORD_HASH`
 - `SESSION_SECRET`
 - `UPLOAD_DIR`
-- `BODY_SIZE_LIMIT` for production multipart request size, default `10M` in Docker Compose
+- `BODY_SIZE_LIMIT` for production multipart request size, default `30M` in Docker Compose
 - `PUBLIC_SITE_URL`
 - `ORIGIN` when running the production Node server behind Docker or a proxy
 - `PUBLIC_CONTACT_LABEL`
@@ -45,7 +45,7 @@ Required:
 
 `ORIGIN` must match the browser origin used to access the app, for example `http://localhost:3000` for local Docker Compose or `https://dibs.example.com` in production. SvelteKit uses this for CSRF protection on admin form posts.
 
-Photo uploads are validated by the app at 5 MB per file. `BODY_SIZE_LIMIT` must be larger than the largest expected multipart upload request; Docker Compose defaults it to `10M`.
+Photo uploads are validated by the app at 25 MB per file. Uploaded jpg, png, and webp images are resized to fit within 1600x1600 and stored as webp files for the public site. `BODY_SIZE_LIMIT` must be larger than the largest expected multipart upload request; Docker Compose defaults it to `30M`.
 
 ## Admin Password Hash
 
@@ -93,7 +93,7 @@ Coolify setup:
 - Set `DATABASE_URL` to the PostgreSQL resource connection string.
 - Set `ORIGIN` and `PUBLIC_SITE_URL` to the public HTTPS URL for the app.
 - Set `UPLOAD_DIR=/app/uploads`.
-- Set `BODY_SIZE_LIMIT=10M` or larger if you want to allow bigger image upload requests.
+- Set `BODY_SIZE_LIMIT=30M` or larger if you want to allow bigger image upload requests.
 - Add a persistent volume mounted at `/app/uploads`.
 - Uploaded photos are written under `UPLOAD_DIR`, so they persist across rebuilds as long as the volume remains mounted.
 
@@ -118,7 +118,7 @@ ADMIN_EMAIL=owner@example.com
 ADMIN_PASSWORD_HASH=...
 SESSION_SECRET=...
 UPLOAD_DIR=/app/uploads
-BODY_SIZE_LIMIT=10M
+BODY_SIZE_LIMIT=30M
 PUBLIC_SITE_URL=https://your-dibs-domain.example
 ORIGIN=https://your-dibs-domain.example
 PUBLIC_CONTACT_LABEL=Message owner

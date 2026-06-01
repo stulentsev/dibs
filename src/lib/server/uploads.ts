@@ -1,14 +1,14 @@
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import sharp from 'sharp';
 import { env } from './config';
 
-const maxUploadBytes = 5 * 1024 * 1024;
-const allowedTypes = new Map([
-  ['image/jpeg', '.jpg'],
-  ['image/png', '.png'],
-  ['image/webp', '.webp']
-]);
+const maxUploadBytes = 25 * 1024 * 1024;
+const maxOutputDimension = 1600;
+const maxInputPixels = 60_000_000;
+const outputExtension = '.webp';
+const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export async function saveUploadedPhoto(file: File): Promise<string> {
   if (file.size <= 0) {
@@ -16,11 +16,10 @@ export async function saveUploadedPhoto(file: File): Promise<string> {
   }
 
   if (file.size > maxUploadBytes) {
-    throw new Error('Uploaded file is larger than 5 MB.');
+    throw new Error('Uploaded file is larger than 25 MB.');
   }
 
-  const extension = allowedTypes.get(file.type);
-  if (!extension) {
+  if (!allowedTypes.has(file.type)) {
     throw new Error('Only jpg, png, and webp images are allowed.');
   }
 
@@ -32,14 +31,30 @@ export async function saveUploadedPhoto(file: File): Promise<string> {
   const uploadDir = resolve(env('UPLOAD_DIR'));
   await mkdir(uploadDir, { recursive: true });
 
-  const filename = `${randomUUID()}${extension}`;
+  const filename = `${randomUUID()}${outputExtension}`;
   const destination = resolve(uploadDir, filename);
   if (!destination.startsWith(`${uploadDir}/`)) {
     throw new Error('Invalid upload destination.');
   }
 
   const data = Buffer.from(await file.arrayBuffer());
-  await writeFile(destination, data, { flag: 'wx' });
+  let resized: Buffer;
+  try {
+    resized = await sharp(data, { limitInputPixels: maxInputPixels })
+      .rotate()
+      .resize({
+        width: maxOutputDimension,
+        height: maxOutputDimension,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({ quality: 82, effort: 4 })
+      .toBuffer();
+  } catch {
+    throw new Error('Uploaded image could not be processed.');
+  }
+
+  await writeFile(destination, resized, { flag: 'wx' });
   return `/uploads/${filename}`;
 }
 
