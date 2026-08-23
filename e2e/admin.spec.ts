@@ -162,6 +162,10 @@ test('admin can delete an item', async ({ page }) => {
   await logIn(page);
 
   const row = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Desk lamp' }) });
+  page.once('dialog', (dialog) => {
+    expect(dialog.message()).toContain('Are you sure you want to delete Desk lamp?');
+    void dialog.accept();
+  });
   await row.getByRole('button', { name: 'Delete' }).click();
 
   await expect(page).toHaveURL(/\/admin$/);

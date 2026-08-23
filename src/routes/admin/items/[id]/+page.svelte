@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmSubmit } from '$lib/confirm-submit';
   import { statuses } from '$lib/item-status';
 
   let { data, form } = $props();
@@ -20,7 +21,11 @@
     </div>
     <div class="row-actions">
       <a class="button" href="/admin">Back</a>
-      <form method="POST" action="?/deleteItem">
+      <form
+        method="POST"
+        action="?/deleteItem"
+        onsubmit={confirmSubmit(`Are you sure you want to delete ${data.item.title}?`)}
+      >
         <button class="button danger" type="submit">Delete item</button>
       </form>
     </div>
@@ -116,7 +121,11 @@
                     <input type="hidden" name="direction" value="down" />
                     <button class="button" type="submit" disabled={index === data.photos.length - 1}>Down</button>
                   </form>
-                  <form method="POST" action="?/deletePhoto">
+                  <form
+                    method="POST"
+                    action="?/deletePhoto"
+                    onsubmit={confirmSubmit('Are you sure you want to delete this photo?')}
+                  >
                     <input type="hidden" name="photo_id" value={photo.id} />
                     <button class="button danger" type="submit">Delete</button>
                   </form>

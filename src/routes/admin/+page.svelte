@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmSubmit } from '$lib/confirm-submit';
   import { formatPrice, formatStatus } from '$lib/format';
 
   let { data, form } = $props();
@@ -61,7 +62,11 @@
               {/if}
             </div>
             <a class="button" href={`/admin/items/${item.id}`}>Edit</a>
-            <form method="POST" action="?/deleteItem">
+            <form
+              method="POST"
+              action="?/deleteItem"
+              onsubmit={confirmSubmit(`Are you sure you want to delete ${item.title}?`)}
+            >
               <input type="hidden" name="id" value={item.id} />
               <button class="button danger" type="submit">Delete</button>
             </form>
