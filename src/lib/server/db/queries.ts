@@ -10,7 +10,13 @@ export async function listPublicAvailableItems() {
   const rows = await db
     .select()
     .from(items)
-    .where(and(eq(items.published, true), eq(items.status, 'available'), isNull(items.deletedAt)))
+    .where(
+      and(
+        eq(items.published, true),
+        inArray(items.status, ['available', 'claimed']),
+        isNull(items.deletedAt)
+      )
+    )
     .orderBy(desc(items.createdAt));
 
   return withFirstPhotos(rows);

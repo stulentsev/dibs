@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatPrice, formatStatus } from '$lib/format';
+  import { formatPrice } from '$lib/format';
 
   let { data } = $props();
 </script>
@@ -31,10 +31,14 @@
         <h1>{data.item.title}</h1>
         <strong>{formatPrice(data.item)}</strong>
       </div>
-      <div class="meta-row">
-        {#if data.item.category}<span>{data.item.category}</span>{/if}
-        <span>{formatStatus(data.item.status)}</span>
-      </div>
+      {#if data.item.category}
+        <div class="meta-row">
+          <span>{data.item.category}</span>
+        </div>
+      {/if}
+      {#if data.item.status === 'claimed'}
+        <p class="reserved-note">Temporarily reserved — might be available soon</p>
+      {/if}
       <p>{data.item.description}</p>
 
       {#if data.item.pickupNotes}
