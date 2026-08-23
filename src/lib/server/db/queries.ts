@@ -36,7 +36,7 @@ export async function getPublicItem(id: number) {
 
 export async function listAdminItems() {
   const db = getDb();
-  const rows = await db.select().from(items).orderBy(desc(items.updatedAt), desc(items.id));
+  const rows = await db.select().from(items).orderBy(desc(items.createdAt), desc(items.id));
   return withFirstPhotos(rows);
 }
 

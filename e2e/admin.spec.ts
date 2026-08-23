@@ -71,6 +71,14 @@ test('admin can edit an item from the admin list', async ({ page }) => {
 test('admin can claim an item from its quick actions', async ({ page }) => {
   await logIn(page);
 
+  const itemHeadings = page.locator('article').getByRole('heading');
+  await expect(itemHeadings).toHaveText([
+    'Reading chair',
+    'Desk lamp',
+    'Box of plant pots',
+    'Oak side table'
+  ]);
+
   const row = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Oak side table' }) });
   const quickActions = row.getByRole('group', { name: 'Quick actions for Oak side table' });
 
@@ -82,6 +90,12 @@ test('admin can claim an item from its quick actions', async ({ page }) => {
   await expect(quickActions.getByRole('button', { name: 'Claim', exact: true })).toHaveCount(0);
   await expect(quickActions.getByRole('button', { name: 'Unclaim' })).toBeVisible();
   await expect(quickActions.getByRole('button', { name: 'Gone' })).toBeVisible();
+  await expect(itemHeadings).toHaveText([
+    'Reading chair',
+    'Desk lamp',
+    'Box of plant pots',
+    'Oak side table'
+  ]);
 
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Oak side table/ })).toHaveCount(0);
