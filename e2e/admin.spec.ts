@@ -79,10 +79,28 @@ test('admin can claim an item from its quick actions', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/admin$/);
   await expect(row.getByText('Claimed')).toBeVisible();
-  await expect(quickActions.getByRole('button', { name: 'Claim' })).toBeDisabled();
+  await expect(quickActions.getByRole('button', { name: 'Claim', exact: true })).toHaveCount(0);
+  await expect(quickActions.getByRole('button', { name: 'Unclaim' })).toBeVisible();
+  await expect(quickActions.getByRole('button', { name: 'Gone' })).toBeVisible();
 
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Oak side table/ })).toHaveCount(0);
+});
+
+test('admin can unclaim or mark a claimed item as gone from quick actions', async ({ page }) => {
+  await logIn(page);
+
+  const row = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Reading chair' }) });
+  const quickActions = row.getByRole('group', { name: 'Quick actions for Reading chair' });
+
+  await quickActions.getByRole('button', { name: 'Unclaim' }).click();
+  await expect(row.getByText('Available')).toBeVisible();
+  await expect(quickActions.getByRole('button', { name: 'Claim' })).toBeVisible();
+
+  await quickActions.getByRole('button', { name: 'Claim' }).click();
+  await quickActions.getByRole('button', { name: 'Gone' }).click();
+  await expect(row.getByText('Gone')).toBeVisible();
+  await expect(quickActions.getByRole('button', { name: 'Claim' })).toBeVisible();
 });
 
 test('admin can change status from the item details page', async ({ page }) => {
@@ -91,13 +109,13 @@ test('admin can change status from the item details page', async ({ page }) => {
 
   await page.goto(`/items/${items.table}`);
   await page.getByRole('link', { name: 'Manage' }).click();
-  await page.getByLabel('Status').selectOption('sold');
+  await page.getByLabel('Status').selectOption('gone');
   await page.getByRole('button', { name: 'Save item' }).click();
 
   await expect(page.getByText('Item saved.')).toBeVisible();
 
   await page.goto(`/items/${items.table}`);
-  await expect(page.getByText('Sold')).toBeVisible();
+  await expect(page.getByText('Gone')).toBeVisible();
 
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Oak side table/ })).toHaveCount(0);

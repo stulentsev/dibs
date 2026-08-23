@@ -8,6 +8,13 @@
       "when": 1719878400000,
       "tag": "0000_initial_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787476904354,
+      "tag": "0001_sour_storm",
+      "breakpoints": true
     }
   ]
 }

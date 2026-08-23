@@ -13,7 +13,7 @@ Build a minimal app that allows the owner to:
 - list spring-cleaning items to sell or give away
 - upload and order item photos
 - publish or hide listings
-- mark item state as draft, available, claimed, sold, given away, or hidden
+- mark item state as draft, available, claimed, gone, or hidden
 
 Public visitors can:
 
@@ -129,7 +129,7 @@ Fields:
 - `description`
 - `price_cents` nullable
 - `is_free` boolean
-- `status` enum: `draft`, `available`, `claimed`, `sold`, `given_away`, `hidden`
+- `status` enum: `draft`, `available`, `claimed`, `gone`, `hidden`
 - `category` nullable
 - `pickup_notes` nullable
 - `published` boolean
@@ -223,7 +223,7 @@ Admin can:
 - delete photos
 - reorder photos when reasonable
 - edit photo alt text when reasonable
-- mark item as draft, available, claimed, sold, given away, or hidden
+- mark item as draft, available, claimed, gone, or hidden
 - toggle `published`
 
 ## 9. Uploads and File Handling

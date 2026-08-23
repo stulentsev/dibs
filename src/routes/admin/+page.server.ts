@@ -25,6 +25,30 @@ export const actions = {
     redirect(303, '/admin');
   },
 
+  unclaimItem: async ({ request, locals }) => {
+    requireAdmin(locals);
+
+    const form = await request.formData();
+    const id = parsePositiveInt(form.get('id'));
+    if (!id) return fail(400, { error: 'Invalid item.' });
+
+    const item = await updateItem(id, { status: 'available' });
+    if (!item) return fail(404, { error: 'Item not found.' });
+    redirect(303, '/admin');
+  },
+
+  markItemGone: async ({ request, locals }) => {
+    requireAdmin(locals);
+
+    const form = await request.formData();
+    const id = parsePositiveInt(form.get('id'));
+    if (!id) return fail(400, { error: 'Invalid item.' });
+
+    const item = await updateItem(id, { status: 'gone' });
+    if (!item) return fail(404, { error: 'Item not found.' });
+    redirect(303, '/admin');
+  },
+
   deleteItem: async ({ request, locals }) => {
     requireAdmin(locals);
 

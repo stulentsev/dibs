@@ -1,4 +1,4 @@
-export const statuses = ['draft', 'available', 'claimed', 'sold', 'given_away', 'hidden'] as const;
+export const statuses = ['draft', 'available', 'claimed', 'gone', 'hidden'] as const;
 
 export type ItemStatus = (typeof statuses)[number];
 
