@@ -68,6 +68,23 @@ test('admin can edit an item from the admin list', async ({ page }) => {
   await expect(page.getByText('€30')).toBeVisible();
 });
 
+test('admin can claim an item from its quick actions', async ({ page }) => {
+  await logIn(page);
+
+  const row = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Oak side table' }) });
+  const quickActions = row.getByRole('group', { name: 'Quick actions for Oak side table' });
+
+  await expect(quickActions.getByText('Quick actions')).toBeVisible();
+  await quickActions.getByRole('button', { name: 'Claim' }).click();
+
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(row.getByText('Claimed')).toBeVisible();
+  await expect(quickActions.getByRole('button', { name: 'Claim' })).toBeDisabled();
+
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: /Oak side table/ })).toHaveCount(0);
+});
+
 test('admin can change status from the item details page', async ({ page }) => {
   const items = await resetCatalog();
   await logIn(page);

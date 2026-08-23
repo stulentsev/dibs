@@ -42,6 +42,13 @@
             </div>
           </div>
           <div class="row-actions">
+            <div class="quick-actions" role="group" aria-label={`Quick actions for ${item.title}`}>
+              <span>Quick actions</span>
+              <form method="POST" action="?/claimItem">
+                <input type="hidden" name="id" value={item.id} />
+                <button class="button" type="submit" disabled={item.status === 'claimed'}>Claim</button>
+              </form>
+            </div>
             <a class="button" href={`/admin/items/${item.id}`}>Edit</a>
             <form method="POST" action="?/deleteItem">
               <input type="hidden" name="id" value={item.id} />
