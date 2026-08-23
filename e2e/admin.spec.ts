@@ -11,6 +11,21 @@ async function logIn(page: import('@playwright/test').Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
+// Svelte hydration can reset bound inputs after a fill lands (it syncs DOM from
+// server state), silently submitting stale values. Keep re-filling until the
+// value survives a settle window; hydration only runs once, so stability is final.
+async function fillAfterHydration(
+  page: import('@playwright/test').Page,
+  locator: import('@playwright/test').Locator,
+  value: string
+) {
+  await expect(async () => {
+    await locator.fill(value);
+    await page.waitForTimeout(150);
+    expect(await locator.inputValue()).toBe(value);
+  }).toPass();
+}
+
 test.beforeEach(async () => {
   await resetCatalog();
 });
@@ -58,8 +73,8 @@ test('admin can edit an item from the admin list', async ({ page }) => {
     .getByRole('link', { name: 'Edit' })
     .click();
 
-  await page.getByLabel('Title').fill('Oak side table, refinished');
-  await page.getByLabel('Price').fill('30.00');
+  await fillAfterHydration(page, page.getByLabel('Title'), 'Oak side table, refinished');
+  await fillAfterHydration(page, page.getByLabel('Price'), '30.00');
   await page.getByRole('button', { name: 'Save item' }).click();
 
   await expect(page.getByText('Item saved.')).toBeVisible();
@@ -85,7 +100,7 @@ test('admin can claim an item from its quick actions', async ({ page }) => {
   await expect(quickActions.getByText('Quick actions')).toBeVisible();
   await quickActions.getByRole('button', { name: 'Claim' }).click();
 
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(/\/admin(\?\/claimItem)?$/);
   await expect(row.getByText('Claimed')).toBeVisible();
   await expect(quickActions.getByRole('button', { name: 'Claim', exact: true })).toHaveCount(0);
   await expect(quickActions.getByRole('button', { name: 'Unclaim' })).toBeVisible();
@@ -168,6 +183,39 @@ test('admin can delete an item', async ({ page }) => {
   });
   await row.getByRole('button', { name: 'Delete' }).click();
 
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(/\/admin(\?\/deleteItem)?$/);
   await expect(page.getByRole('heading', { name: 'Desk lamp' })).toHaveCount(0);
+
+  await page.getByRole('link', { name: 'Recently deleted' }).click();
+  await expect(page).toHaveURL(/recently_deleted=1/);
+  await expect(page.getByRole('heading', { name: 'Desk lamp' })).toBeVisible();
+  await page.getByRole('button', { name: 'Restore' }).click();
+  await expect(page.getByRole('heading', { name: 'Desk lamp' })).toHaveCount(0);
+
+  await page.getByRole('link', { name: 'All items' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole('heading', { name: 'Desk lamp' })).toBeVisible();
+});
+
+test('quick actions preserve scroll position', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 400 });
+  await logIn(page);
+
+  // Wait out hydration: an unenhanced native submit would do a full navigation
+  // and defeat what this test checks
+  await page.waitForLoadState('networkidle');
+
+  const row = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Reading chair' }) });
+  await row.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+  expect(scrollBefore).toBeGreaterThan(100);
+
+  // dispatchEvent avoids Playwright's own auto-scroll-before-click, so any
+  // scroll change after the action comes from the app itself
+  await row.getByRole('button', { name: 'Unclaim' }).dispatchEvent('click');
+  await expect(row.getByRole('button', { name: 'Claim' })).toBeVisible();
+
+  const scrollAfter = await page.evaluate(() => window.scrollY);
+  expect(scrollAfter).toBe(scrollBefore);
 });

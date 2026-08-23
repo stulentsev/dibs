@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, notInArray } from 'drizzle-orm';
 import { statuses, isItemStatus } from '$lib/item-status';
 import { getDb } from './client';
 import { itemPhotos, items, type NewItem } from './schema';
@@ -10,7 +10,7 @@ export async function listPublicAvailableItems() {
   const rows = await db
     .select()
     .from(items)
-    .where(and(eq(items.published, true), eq(items.status, 'available')))
+    .where(and(eq(items.published, true), eq(items.status, 'available'), isNull(items.deletedAt)))
     .orderBy(desc(items.createdAt));
 
   return withFirstPhotos(rows);
@@ -25,7 +25,8 @@ export async function getPublicItem(id: number) {
       and(
         eq(items.id, id),
         eq(items.published, true),
-        notInArray(items.status, ['draft', 'hidden'])
+        notInArray(items.status, ['draft', 'hidden']),
+        isNull(items.deletedAt)
       )
     )
     .limit(1);
@@ -34,9 +35,13 @@ export async function getPublicItem(id: number) {
   return { item, photos: await listPhotos(id) };
 }
 
-export async function listAdminItems() {
+export async function listAdminItems(options: { deleted?: boolean } = {}) {
   const db = getDb();
-  const rows = await db.select().from(items).orderBy(desc(items.createdAt), desc(items.id));
+  const rows = await db
+    .select()
+    .from(items)
+    .where(options.deleted ? isNotNull(items.deletedAt) : isNull(items.deletedAt))
+    .orderBy(desc(items.createdAt), desc(items.id));
   return withFirstPhotos(rows);
 }
 
@@ -64,7 +69,11 @@ export async function updateItem(id: number, values: Partial<NewItem>) {
 }
 
 export async function deleteItem(id: number) {
-  await getDb().delete(items).where(eq(items.id, id));
+  await updateItem(id, { deletedAt: new Date() });
+}
+
+export async function restoreItem(id: number) {
+  return updateItem(id, { deletedAt: null });
 }
 
 export async function listPhotos(itemId: number) {

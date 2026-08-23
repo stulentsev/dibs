@@ -5,3 +5,9 @@ export function confirmSubmit(message: string) {
     }
   };
 }
+
+export function confirmEnhance(message: string) {
+  return ({ cancel }: { cancel: () => void }) => {
+    if (!window.confirm(message)) cancel();
+  };
+}

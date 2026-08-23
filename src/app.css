@@ -313,6 +313,17 @@ h2 {
   margin-bottom: 18px;
 }
 
+.view-toggle {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.view-toggle .button[aria-current='page'] {
+  background: #1f2933;
+  color: #fff;
+}
+
 .table-list,
 .photo-list,
 .form-grid,

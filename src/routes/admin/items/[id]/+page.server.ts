@@ -47,9 +47,7 @@ export const actions = {
     requireAdmin(locals);
 
     const id = parseItemId(params.id);
-    const photos = await listPhotos(id);
     await deleteItem(id);
-    await Promise.all(photos.map((photo) => deleteUploadedPhoto(photo.path)));
     redirect(303, '/admin');
   },
 
