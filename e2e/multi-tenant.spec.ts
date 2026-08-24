@@ -17,11 +17,26 @@ async function logInAsOwner(page: import('@playwright/test').Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
+async function fillAfterHydration(
+  page: import('@playwright/test').Page,
+  locator: import('@playwright/test').Locator,
+  value: string
+) {
+  await expect(async () => {
+    await locator.fill(value);
+    await page.waitForTimeout(150);
+    expect(await locator.inputValue()).toBe(value);
+  }).toPass();
+}
+
 async function createInviteLink(page: import('@playwright/test').Page): Promise<string> {
   await page.goto('/admin/invites');
+  const links = page.locator('code.invite-link');
+  const count = await links.count();
   await page.getByLabel('Expires after (days)').fill('7');
   await page.getByRole('button', { name: 'Create invite link' }).click();
-  const link = page.locator('code.invite-link').last();
+  await expect(links).toHaveCount(count + 1);
+  const link = links.first();
   await expect(link).toBeVisible();
   return (await link.textContent()) ?? '';
 }
@@ -69,6 +84,12 @@ test('invite-only signup scopes tenants to their own items', async ({ browser })
   await tenantPage.getByRole('button', { name: 'Create item' }).click();
   await expect(tenantPage).toHaveURL(/\/admin\/items\/\d+$/);
 
+  const crossTenantDelete = await tenantPage.request.post('/admin?/deleteItem', {
+    form: { id: String(items.table) },
+    headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+  });
+  expect(await crossTenantDelete.json()).toMatchObject({ type: 'failure', status: 404 });
+
   // Public catalog is shared: both sellers appear, tenant detail shows seller name
   const publicPage = await tenantContext.newPage();
   await publicPage.goto('/');
@@ -95,6 +116,14 @@ test('invite-only signup scopes tenants to their own items', async ({ browser })
   // Owner can disable the tenant; the tenant session is revoked immediately
   await ownerPage.goto('/admin/tenants');
   const row = ownerPage.locator('article').filter({ hasText: 'tess@example.com' });
+  const tenantId = await row.locator('input[name="id"]').first().getAttribute('value');
+  const malformedToggle = await ownerPage.request.post('/admin/tenants?/toggle', {
+    form: { id: tenantId!, status: 'unexpected' },
+    headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+  });
+  expect(await malformedToggle.json()).toMatchObject({ type: 'failure', status: 400 });
+  await expect(row.getByText('Active')).toBeVisible();
+
   await row.getByRole('button', { name: 'Disable' }).click();
   await expect(row.getByText('Disabled')).toBeVisible();
 
@@ -106,6 +135,8 @@ test('invite-only signup scopes tenants to their own items', async ({ browser })
   const temporaryPassword = await ownerPage.locator('.success-note code').textContent();
   expect(temporaryPassword).toBeTruthy();
   await expect(row.getByText('Disabled')).toBeVisible();
+  await ownerPage.reload();
+  await expect(ownerPage.locator('.success-note')).toHaveCount(0);
 
   await tenantPage.getByLabel('Email or username').fill('tess@example.com');
   await tenantPage.getByLabel('Password').fill(temporaryPassword!);
@@ -147,6 +178,64 @@ test('an invite link cannot be used twice', async ({ browser }) => {
   await secondPage.goto(inviteLink);
   await expect(secondPage.getByText('Invalid, expired, or already used', { exact: false })).toBeVisible();
   await second.close();
+});
+
+test('signup rejects passwords beyond bcrypt limit without consuming the invite', async ({ browser }) => {
+  await resetCatalog();
+
+  const ownerContext = await browser.newContext();
+  const ownerPage = await ownerContext.newPage();
+  await logInAsOwner(ownerPage);
+  const inviteLink = await createInviteLink(ownerPage);
+  await ownerContext.close();
+
+  const tenantContext = await browser.newContext();
+  const tenantPage = await tenantContext.newPage();
+  await tenantPage.goto(inviteLink);
+  await tenantPage.getByLabel('Email').fill('long-password@example.com');
+  await tenantPage.getByLabel(/^Password/).fill('a'.repeat(73));
+  await tenantPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(tenantPage.getByText('Password must be at most 72 UTF-8 bytes.')).toBeVisible();
+
+  await tenantPage.getByLabel(/^Password/).fill('supersafe123');
+  await tenantPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(tenantPage).toHaveURL(/\/admin$/);
+  await tenantContext.close();
+});
+
+test('signup distinguishes an existing email and leaves the invite usable', async ({ browser }) => {
+  await resetCatalog();
+
+  const ownerContext = await browser.newContext();
+  const ownerPage = await ownerContext.newPage();
+  await logInAsOwner(ownerPage);
+  const firstInviteLink = await createInviteLink(ownerPage);
+  const secondInviteLink = await createInviteLink(ownerPage);
+  await ownerContext.close();
+
+  const firstContext = await browser.newContext();
+  const firstPage = await firstContext.newPage();
+  await firstPage.goto(firstInviteLink);
+  await firstPage.getByLabel('Email').fill('duplicate@example.com');
+  await firstPage.getByLabel(/^Password/).fill('supersafe123');
+  await firstPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(firstPage).toHaveURL(/\/admin$/);
+  await firstContext.close();
+
+  const secondContext = await browser.newContext();
+  const secondPage = await secondContext.newPage();
+  await secondPage.goto(secondInviteLink);
+  await secondPage.getByLabel('Email').fill('duplicate@example.com');
+  await secondPage.getByLabel(/^Password/).fill('supersafe123');
+  await secondPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(secondPage.getByText('An account with this email already exists.')).toBeVisible();
+
+  await secondPage.goto(secondInviteLink);
+  await fillAfterHydration(secondPage, secondPage.getByLabel('Email'), 'replacement@example.com');
+  await secondPage.getByLabel(/^Password/).fill('supersafe123');
+  await secondPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(secondPage).toHaveURL(/\/admin$/);
+  await secondContext.close();
 });
 
 test('signup rolls back when the invite expires before atomic consumption', async ({ browser }) => {

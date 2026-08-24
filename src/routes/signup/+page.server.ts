@@ -1,6 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { setSessionCookie } from '$lib/server/auth';
-import { getUsableInvite, signupWithInvite } from '$lib/server/users';
+import {
+  BCRYPT_MAX_PASSWORD_BYTES,
+  getUsableInvite,
+  passwordExceedsBcryptLimit,
+  signupWithInvite
+} from '$lib/server/users';
 
 function text(form: FormData, name: string): string {
   const value = form.get(name);
@@ -30,6 +35,9 @@ export const actions = {
     if (!invite) errors.push('This invite link is invalid, expired, or already used.');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('A valid email is required.');
     if (password.length < 8) errors.push('Password must be at least 8 characters.');
+    if (passwordExceedsBcryptLimit(password)) {
+      errors.push(`Password must be at most ${BCRYPT_MAX_PASSWORD_BYTES} UTF-8 bytes.`);
+    }
     if (contactUrl && !/^https?:\/\//i.test(contactUrl)) {
       errors.push('Contact link must start with http:// or https://.');
       contactUrl = null;
@@ -41,7 +49,11 @@ export const actions = {
 
     const result = await signupWithInvite({ token, email, password, displayName, contactUrl });
     if (!result.ok) {
-      return fail(400, { errors: ['This invite link is invalid, expired, or already used.'], email, displayName });
+      const message =
+        result.reason === 'email-exists'
+          ? 'An account with this email already exists.'
+          : 'This invite link is invalid, expired, or already used.';
+      return fail(400, { errors: [message], email, displayName });
     }
 
     setSessionCookie(cookies, result.user, url.protocol === 'https:');

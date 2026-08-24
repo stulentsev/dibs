@@ -3,7 +3,11 @@ import { resolve } from 'node:path';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import postgres from 'postgres';
 import { getSqlClient } from '../src/lib/server/db/client';
-import { ensureOwner, LEGACY_OWNER_EMAIL } from '../src/lib/server/users';
+import {
+  claimOwnerWithBootstrapCredentials,
+  ensureOwner,
+  LEGACY_OWNER_EMAIL
+} from '../src/lib/server/users';
 import { adminCredentials, adminPasswordHash, e2eDatabaseUrl } from './db';
 
 const sql = postgres(e2eDatabaseUrl, { max: 1, prepare: false });
@@ -70,6 +74,30 @@ test('first login claims the owner created by a clean migration chain', async ({
       passwordHash: adminPasswordHash
     }
   ]);
+});
+
+test('failed bootstrap credentials do not claim the owner', async () => {
+  await resetAndMigrate();
+  delete process.env.ADMIN_USERNAME;
+  process.env.ADMIN_EMAIL = 'wrong-owner@example.com';
+  process.env.ADMIN_PASSWORD_HASH = adminPasswordHash;
+
+  expect(
+    await claimOwnerWithBootstrapCredentials(
+      adminCredentials().identifier,
+      adminCredentials().password
+    )
+  ).toBeNull();
+  expect(await ownerEmails()).toEqual([LEGACY_OWNER_EMAIL]);
+
+  process.env.ADMIN_EMAIL = adminCredentials().identifier;
+  const owner = await claimOwnerWithBootstrapCredentials(
+    adminCredentials().identifier,
+    adminCredentials().password
+  );
+
+  expect(owner?.email).toBe(adminCredentials().identifier);
+  expect(await ownerEmails()).toEqual([adminCredentials().identifier]);
 });
 
 test('first login preserves upgraded items on the claimed owner', async ({ page }) => {

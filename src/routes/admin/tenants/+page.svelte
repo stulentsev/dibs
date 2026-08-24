@@ -59,7 +59,7 @@
                   {tenant.status === 'active' ? 'Disable' : 'Enable'}
                 </button>
               </form>
-              <form method="POST" action="?/resetPassword">
+              <form method="POST" action="?/resetPassword" use:enhance>
                 <input type="hidden" name="id" value={tenant.id} />
                 <button class="button" type="submit">Reset password</button>
               </form>

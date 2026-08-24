@@ -17,8 +17,11 @@ export const actions = {
 
     const form = await request.formData();
     const id = parsePositiveInt(form.get('id'));
-    const status = form.get('status') === 'disable' ? 'disable' : 'enable';
     if (!id) return fail(400, { error: 'Invalid tenant.' });
+    const status = form.get('status');
+    if (status !== 'disable' && status !== 'enable') {
+      return fail(400, { error: 'Invalid tenant status.' });
+    }
 
     const user = await setTenantStatus(id, status === 'disable' ? 'disabled' : 'active');
     if (!user) return fail(404, { error: 'Tenant not found.' });

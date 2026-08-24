@@ -57,7 +57,8 @@ export const actions = {
     const id = parsePositiveInt(form.get('id'));
     if (!id) return fail(400, { error: 'Invalid item.' });
 
-    await deleteItem(id, actor);
+    const item = await deleteItem(id, actor);
+    if (!item) return fail(404, { error: 'Item not found.' });
     return { error: null };
   },
 

@@ -37,7 +37,7 @@
         <input name="contact_url" type="url" placeholder="https://" />
       </label>
       <label>
-        Password <span class="muted">(at least 8 characters)</span>
+        Password <span class="muted">(8 characters, at most 72 UTF-8 bytes)</span>
         <input name="password" type="password" autocomplete="new-password" minlength="8" required />
       </label>
       <button class="button primary" type="submit">Create account</button>

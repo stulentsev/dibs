@@ -8,6 +8,7 @@ import { invites, items, users } from './db/schema';
 export const LEGACY_OWNER_EMAIL = 'owner@legacy.internal';
 
 const minPasswordLength = 8;
+export const BCRYPT_MAX_PASSWORD_BYTES = 72;
 
 export async function ensureOwner(): Promise<void> {
   const email = getAdminIdentifier();
@@ -43,6 +44,19 @@ export async function ensureOwner(): Promise<void> {
       status: 'active'
     });
   });
+}
+
+export async function claimOwnerWithBootstrapCredentials(email: string, password: string) {
+  const configuredEmail = getAdminIdentifier();
+  if (!configuredEmail) {
+    throw new Error('Missing required environment variable: ADMIN_EMAIL or ADMIN_USERNAME');
+  }
+
+  if (normalizeIdentifier(email) !== configuredEmail || !password) return null;
+  if (!(await bcrypt.compare(password, env('ADMIN_PASSWORD_HASH')))) return null;
+
+  await ensureOwner();
+  return verifyLogin(email, password);
 }
 
 export async function verifyLogin(email: string, password: string) {
@@ -99,7 +113,17 @@ export type SignupInput = {
   contactUrl: string | null;
 };
 
+class InviteUnavailableError extends Error {}
+
+export function passwordExceedsBcryptLimit(password: string): boolean {
+  return Buffer.byteLength(password, 'utf8') > BCRYPT_MAX_PASSWORD_BYTES;
+}
+
 export async function signupWithInvite(input: SignupInput) {
+  if (passwordExceedsBcryptLimit(input.password)) {
+    throw new RangeError(`Password exceeds bcrypt's ${BCRYPT_MAX_PASSWORD_BYTES}-byte limit.`);
+  }
+
   const db = getDb();
   const normalized = normalizeIdentifier(input.email);
   const passwordHash = await bcrypt.hash(input.password, 12);
@@ -118,7 +142,7 @@ export async function signupWithInvite(input: SignupInput) {
         .onConflictDoNothing({ target: users.email })
         .returning();
 
-      if (!user) return { ok: false as const };
+      if (!user) return { ok: false as const, reason: 'email-exists' as const };
 
       const consumed = await tx
         .update(invites)
@@ -132,14 +156,17 @@ export async function signupWithInvite(input: SignupInput) {
         )
         .returning({ id: invites.id });
 
-      if (consumed.length === 0) throw new Error('invite-unavailable');
+      if (consumed.length === 0) throw new InviteUnavailableError();
 
       return { ok: true as const, user };
     });
-  } catch {
+  } catch (error) {
     // Account creation and invite consumption roll back together, so a failed
     // signup never burns an invite.
-    return { ok: false as const };
+    if (error instanceof InviteUnavailableError) {
+      return { ok: false as const, reason: 'invite-unavailable' as const };
+    }
+    throw error;
   }
 }
 

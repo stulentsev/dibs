@@ -105,7 +105,7 @@ export async function updateItem(id: number, values: Partial<NewItem>, actor: Ac
 }
 
 export async function deleteItem(id: number, actor: Actor) {
-  await updateItem(id, { deletedAt: new Date() }, actor);
+  return updateItem(id, { deletedAt: new Date() }, actor);
 }
 
 export async function restoreItem(id: number, actor: Actor) {
