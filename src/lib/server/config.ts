@@ -29,6 +29,13 @@ export function requireRuntimeEnv(): void {
   }
 }
 
+export function normalizeIdentifier(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 export function getAdminIdentifier(): string | null {
-  return optionalEnv('ADMIN_EMAIL') ?? optionalEnv('ADMIN_USERNAME') ?? null;
+  const email = optionalEnv('ADMIN_EMAIL');
+  if (email) return normalizeIdentifier(email);
+  const username = optionalEnv('ADMIN_USERNAME');
+  return username ? normalizeIdentifier(username) : null;
 }
