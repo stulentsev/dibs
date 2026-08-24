@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
-import { env, getAdminIdentifier } from './config';
+import { env, getAdminIdentifier, normalizeIdentifier } from './config';
 import { getDb } from './db/client';
 import { invites, items, users } from './db/schema';
 
@@ -33,7 +33,7 @@ export async function ensureOwner(): Promise<void> {
 }
 
 export async function verifyLogin(email: string, password: string) {
-  const normalized = email.trim().toLowerCase();
+  const normalized = normalizeIdentifier(email);
   if (!normalized || !password) return null;
 
   const [user] = await getDb()
@@ -88,7 +88,7 @@ export type SignupInput = {
 
 export async function signupWithInvite(input: SignupInput) {
   const db = getDb();
-  const normalized = input.email.trim().toLowerCase();
+  const normalized = normalizeIdentifier(input.email);
   const passwordHash = await bcrypt.hash(input.password, 12);
 
   try {
