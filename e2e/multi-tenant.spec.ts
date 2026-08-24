@@ -29,12 +29,13 @@ test('invite-only signup scopes tenants to their own items', async ({ browser })
   const inviteLink = await createInviteLink(ownerPage);
   expect(inviteLink).toContain('/signup?token=');
 
-  // A used-up or bogus token must not allow signup
-  await ownerPage.goto('/signup?token=not-a-real-token');
-  await expect(ownerPage.getByText('Invalid, expired, or already used', { exact: false })).toBeVisible();
-
   const tenantContext = await browser.newContext();
   const tenantPage = await tenantContext.newPage();
+
+  // A used-up or bogus token must not allow signup
+  await tenantPage.goto('/signup?token=not-a-real-token');
+  await expect(tenantPage.getByText('Invalid, expired, or already used', { exact: false })).toBeVisible();
+
   await tenantPage.goto(inviteLink);
   await expect(tenantPage.getByRole('heading', { name: 'Create your seller account' })).toBeVisible();
 
@@ -71,7 +72,7 @@ test('invite-only signup scopes tenants to their own items', async ({ browser })
   await publicPage.getByRole('link', { name: /Tenant bike/ }).click();
   await expect(publicPage.getByText('Offered by Neighbor Tess')).toBeVisible();
   const contact = publicPage.getByRole('link', { name: 'Message owner' });
-  await expect(contact).toHaveAttribute(/href/, /^https:\/\/example\.com\/tess/);
+  await expect(contact).toHaveAttribute('href', /^https:\/\/example\.com\/tess/);
 
   // Owner still sees everything, including the tenant's item
   await ownerPage.goto('/admin');
@@ -106,11 +107,11 @@ test('an invite link cannot be used twice', async ({ browser }) => {
   await firstPage.getByLabel(/^Password/).fill('supersafe123');
   await firstPage.getByRole('button', { name: 'Create account' }).click();
   await expect(firstPage).toHaveURL(/\/admin$/);
-  await firstContext.close();
+  await first.close();
 
   const second = await browser.newContext();
   const secondPage = await second.newPage();
   await secondPage.goto(inviteLink);
   await expect(secondPage.getByText('Invalid, expired, or already used', { exact: false })).toBeVisible();
-  await secondContext.close();
+  await second.close();
 });
