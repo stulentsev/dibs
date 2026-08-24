@@ -190,7 +190,6 @@ export async function resetTenantPassword(tenantId: number): Promise<string | nu
     .update(users)
     .set({
       passwordHash,
-      status: 'active',
       tokenVersion: sql`${users.tokenVersion} + 1`,
       updatedAt: new Date()
     })

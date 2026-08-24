@@ -87,6 +87,25 @@ test('invite-only signup scopes tenants to their own items', async ({ browser })
   await tenantPage.goto('/admin');
   await expect(tenantPage).toHaveURL(/\/admin\/login$/);
 
+  // Resetting credentials must not undo an administrative disable.
+  await row.getByRole('button', { name: 'Reset password' }).click();
+  const temporaryPassword = await ownerPage.locator('.success-note code').textContent();
+  expect(temporaryPassword).toBeTruthy();
+  await expect(row.getByText('Disabled')).toBeVisible();
+
+  await tenantPage.getByLabel('Email or username').fill('tess@example.com');
+  await tenantPage.getByLabel('Password').fill(temporaryPassword!);
+  await tenantPage.getByRole('button', { name: 'Log in' }).click();
+  await expect(tenantPage.getByText('Invalid credentials.')).toBeVisible();
+
+  // Only the explicit Enable action restores access with the new password.
+  await row.getByRole('button', { name: 'Enable' }).click();
+  await expect(row.getByText('Active')).toBeVisible();
+  await tenantPage.getByLabel('Email or username').fill('tess@example.com');
+  await tenantPage.getByLabel('Password').fill(temporaryPassword!);
+  await tenantPage.getByRole('button', { name: 'Log in' }).click();
+  await expect(tenantPage).toHaveURL(/\/admin$/);
+
   await ownerContext.close();
   await tenantContext.close();
 });
