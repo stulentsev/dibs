@@ -16,16 +16,22 @@ export async function ensureOwner(): Promise<void> {
   }
 
   const db = getDb();
+  const passwordHash = env('ADMIN_PASSWORD_HASH');
   await db.execute(
-    sql`update "users" set "email" = ${email}, "updated_at" = now()
-        where "email" = ${LEGACY_OWNER_EMAIL}
-          and not exists (select 1 from "users" where "email" = ${email})`
+    sql`update "users" as "legacy_owner"
+        set "email" = ${email}, "password_hash" = ${passwordHash}, "updated_at" = now()
+        where "legacy_owner"."email" = ${LEGACY_OWNER_EMAIL}
+          and not exists (
+            select 1 from "users" as "configured_owner"
+            where "configured_owner"."email" = ${email}
+              and "configured_owner"."email" <> ${LEGACY_OWNER_EMAIL}
+          )`
   );
   await db
     .insert(users)
     .values({
       email,
-      passwordHash: env('ADMIN_PASSWORD_HASH'),
+      passwordHash,
       role: 'owner',
       status: 'active'
     })
