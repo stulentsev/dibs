@@ -1,20 +1,21 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { getAdminIdentifier, setSessionCookie, verifyPassword } from '$lib/server/auth';
-import { requireRuntimeEnv } from '$lib/server/config';
+import { setSessionCookie } from '$lib/server/auth';
+import { ensureOwner, verifyLogin } from '$lib/server/users';
 
 export const actions = {
   default: async ({ request, cookies, url }) => {
-    requireRuntimeEnv();
+    await ensureOwner();
+
     const form = await request.formData();
     const identifier = String(form.get('identifier') ?? '').trim();
     const password = String(form.get('password') ?? '');
-    const adminIdentifier = getAdminIdentifier();
 
-    if (!adminIdentifier || identifier !== adminIdentifier || !(await verifyPassword(password))) {
-      return fail(400, { error: 'Invalid admin credentials.' });
+    const user = await verifyLogin(identifier, password);
+    if (!user) {
+      return fail(400, { error: 'Invalid credentials.' });
     }
 
-    setSessionCookie(cookies, adminIdentifier, url.protocol === 'https:');
+    setSessionCookie(cookies, user, url.protocol === 'https:');
     redirect(303, '/admin');
   }
 };

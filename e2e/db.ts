@@ -17,16 +17,32 @@ export function adminCredentials() {
   };
 }
 
+export const adminPasswordHash = '$2b$10$LHZd5YjLu078d/JBmcNSeeye3.mDdazvPHi1WQGOSnc5IQJNN3phm';
+
+async function ensureOwnerUser(sql: ReturnType<typeof postgres>) {
+  await sql`
+    insert into users (email, password_hash, role, status)
+    values (${adminCredentials().identifier}, ${adminPasswordHash}, 'owner', 'active')
+    on conflict (email) do nothing
+  `;
+  const rows = await sql<{ id: number }[]>`
+    select id from users where email = ${adminCredentials().identifier}
+  `;
+  return rows[0]!.id;
+}
+
 export async function resetCatalog(): Promise<SeededItems> {
   const sql = postgres(e2eDatabaseUrl, { max: 1, prepare: false });
 
   try {
     await sql`truncate table item_photos, items restart identity cascade`;
+    const ownerId = await ensureOwnerUser(sql);
 
     const rows = await sql<{ id: number; title: string }[]>`
-      insert into items (title, description, price_cents, is_free, status, category, pickup_notes, published)
+      insert into items (owner_id, title, description, price_cents, is_free, status, category, pickup_notes, published)
       values
         (
+          ${ownerId},
           'Oak side table',
           'Small solid wood side table with a few surface marks.',
           2500,
@@ -37,6 +53,7 @@ export async function resetCatalog(): Promise<SeededItems> {
           true
         ),
         (
+          ${ownerId},
           'Box of plant pots',
           'Mixed ceramic and plastic pots from a spring clean.',
           null,
@@ -47,6 +64,7 @@ export async function resetCatalog(): Promise<SeededItems> {
           true
         ),
         (
+          ${ownerId},
           'Desk lamp',
           'Adjustable lamp, working bulb included.',
           800,
@@ -57,6 +75,7 @@ export async function resetCatalog(): Promise<SeededItems> {
           false
         ),
         (
+          ${ownerId},
           'Reading chair',
           'Comfortable chair with a washable cover.',
           4000,

@@ -1,5 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/auth';
+import { requireUser } from '$lib/server/auth';
 import {
   deleteItem,
   deletePhoto,
@@ -19,19 +19,22 @@ function parseItemId(param: string): number {
   return id;
 }
 
-export async function load({ params, locals }) {
-  requireAdmin(locals);
-
-  const record = await getAdminItem(parseItemId(params.id));
+async function requireOwnedItem(params: { id: string }, locals: App.Locals) {
+  const actor = requireUser(locals);
+  const record = await getAdminItem(parseItemId(params.id), actor);
   if (!record) error(404, 'Item not found');
+  return { actor, record };
+}
+
+export async function load({ params, locals }) {
+  const { record } = await requireOwnedItem(params, locals);
   return record;
 }
 
 export const actions = {
   update: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { actor } = await requireOwnedItem(params, locals);
 
-    const id = parseItemId(params.id);
     const form = await request.formData();
     const parsed = parseItemForm(form);
 
@@ -39,22 +42,21 @@ export const actions = {
       return fail(400, { errors: parsed.errors });
     }
 
-    await updateItem(id, parsed.values);
+    await updateItem(parseItemId(params.id), parsed.values, actor);
     return { success: 'Item saved.' };
   },
 
   deleteItem: async ({ params, locals }) => {
-    requireAdmin(locals);
+    const { actor } = await requireOwnedItem(params, locals);
 
-    const id = parseItemId(params.id);
-    await deleteItem(id);
+    await deleteItem(parseItemId(params.id), actor);
     redirect(303, '/admin');
   },
 
   uploadPhotos: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { record } = await requireOwnedItem(params, locals);
+    const id = record.item.id;
 
-    const id = parseItemId(params.id);
     let form: FormData;
     try {
       form = await request.formData();
@@ -83,9 +85,9 @@ export const actions = {
   },
 
   deletePhoto: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { record } = await requireOwnedItem(params, locals);
+    const itemId = record.item.id;
 
-    const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
     if (!photoId) return fail(400, { errors: ['Invalid photo.'] });
@@ -97,9 +99,9 @@ export const actions = {
   },
 
   updatePhotoAlt: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { record } = await requireOwnedItem(params, locals);
+    const itemId = record.item.id;
 
-    const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
     const altText = String(form.get('alt_text') ?? '').trim() || null;
@@ -111,9 +113,9 @@ export const actions = {
   },
 
   movePhoto: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { record } = await requireOwnedItem(params, locals);
+    const itemId = record.item.id;
 
-    const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
     const direction = form.get('direction') === 'down' ? 'down' : 'up';

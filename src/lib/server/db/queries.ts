@@ -1,9 +1,18 @@
 import { and, asc, desc, eq, inArray, isNotNull, isNull, notInArray } from 'drizzle-orm';
 import { statuses, isItemStatus } from '$lib/item-status';
 import { getDb } from './client';
-import { itemPhotos, items, type NewItem } from './schema';
+import { itemPhotos, items, users, type NewItem } from './schema';
 
 export { statuses, isItemStatus };
+
+export type Actor = {
+  id: number;
+  role: 'owner' | 'tenant';
+};
+
+function ownership(actor: Actor) {
+  return actor.role === 'owner' ? undefined : eq(items.ownerId, actor.id);
+}
 
 export async function listPublicAvailableItems() {
   const db = getDb();
@@ -24,9 +33,14 @@ export async function listPublicAvailableItems() {
 
 export async function getPublicItem(id: number) {
   const db = getDb();
-  const [item] = await db
-    .select()
+  const [row] = await db
+    .select({
+      item: items,
+      sellerName: users.displayName,
+      sellerContactUrl: users.contactUrl
+    })
     .from(items)
+    .innerJoin(users, eq(items.ownerId, users.id))
     .where(
       and(
         eq(items.id, id),
@@ -37,49 +51,65 @@ export async function getPublicItem(id: number) {
     )
     .limit(1);
 
-  if (!item) return null;
-  return { item, photos: await listPhotos(id) };
+  if (!row) return null;
+  return {
+    item: row.item,
+    photos: await listPhotos(row.item.id),
+    seller: { name: row.sellerName, contactUrl: row.sellerContactUrl }
+  };
 }
 
-export async function listAdminItems(options: { deleted?: boolean } = {}) {
+export async function listAdminItems(actor: Actor, options: { deleted?: boolean } = {}) {
   const db = getDb();
   const rows = await db
     .select()
     .from(items)
-    .where(options.deleted ? isNotNull(items.deletedAt) : isNull(items.deletedAt))
+    .where(
+      and(
+        options.deleted ? isNotNull(items.deletedAt) : isNull(items.deletedAt),
+        ownership(actor)
+      )
+    )
     .orderBy(desc(items.createdAt), desc(items.id));
   return withFirstPhotos(rows);
 }
 
-export async function getAdminItem(id: number) {
+export async function getAdminItem(id: number, actor: Actor) {
   const db = getDb();
-  const [item] = await db.select().from(items).where(eq(items.id, id)).limit(1);
+  const [item] = await db
+    .select()
+    .from(items)
+    .where(and(eq(items.id, id), ownership(actor)))
+    .limit(1);
   if (!item) return null;
   return { item, photos: await listPhotos(id) };
 }
 
-export async function createItem(values: NewItem) {
+export async function createItem(values: Omit<NewItem, 'ownerId'>, ownerId: number) {
   const db = getDb();
-  const [item] = await db.insert(items).values(values).returning();
+  const [item] = await db
+    .insert(items)
+    .values({ ...values, ownerId })
+    .returning();
   return item;
 }
 
-export async function updateItem(id: number, values: Partial<NewItem>) {
+export async function updateItem(id: number, values: Partial<NewItem>, actor: Actor) {
   const db = getDb();
   const [item] = await db
     .update(items)
     .set({ ...values, updatedAt: new Date() })
-    .where(eq(items.id, id))
+    .where(and(eq(items.id, id), ownership(actor)))
     .returning();
   return item ?? null;
 }
 
-export async function deleteItem(id: number) {
-  await updateItem(id, { deletedAt: new Date() });
+export async function deleteItem(id: number, actor: Actor) {
+  await updateItem(id, { deletedAt: new Date() }, actor);
 }
 
-export async function restoreItem(id: number) {
-  return updateItem(id, { deletedAt: null });
+export async function restoreItem(id: number, actor: Actor) {
+  return updateItem(id, { deletedAt: null }, actor);
 }
 
 export async function listPhotos(itemId: number) {

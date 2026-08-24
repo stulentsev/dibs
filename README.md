@@ -1,6 +1,6 @@
 # dibs
 
-`dibs` is a small self-hosted garage sale catalog. Public visitors can browse published items and use an external contact link. Only the owner can manage listings.
+`dibs` is a small self-hosted garage sale catalog. Public visitors browse one shared catalog of published items and use each item's contact link. The owner manages the site and can invite sellers through single-use invite links; each seller manages only their own items.
 
 ## Local Development
 
@@ -56,6 +56,17 @@ pnpm password:hash "your-admin-password"
 ```
 
 Use the printed value as `ADMIN_PASSWORD_HASH`.
+
+## Owner Login and Seller Invites
+
+The first login seeds the owner account from `ADMIN_EMAIL` (or `ADMIN_USERNAME`) and `ADMIN_PASSWORD_HASH`; after that the database row is the source of truth, and changing those environment variables has no effect on an existing owner account.
+
+As the owner you can:
+
+- **Invites** (`/admin/invites`): create single-use signup links that expire in 1–30 days, and revoke unused ones. Anyone with a valid link can self-register as a seller at `/signup`.
+- **Sellers** (`/admin/tenants`): see seller accounts and their item counts, disable or re-enable accounts (disabling signs them out immediately), and issue one-time temporary passwords.
+
+Sellers only ever see and manage their own items. All published items appear together in the public catalog; item detail pages show the seller's display name when set, and the contact button uses the seller's contact link, falling back to `PUBLIC_CONTACT_URL_TEMPLATE`. Sellers without their own contact link fall back to the site-wide template.
 
 ## Database Commands
 
