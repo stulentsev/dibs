@@ -53,7 +53,7 @@
         <a class="button primary" href={data.contactUrl} rel="noreferrer" target="_blank">
           {data.contactLabel}
         </a>
-        {#if data.admin}
+        {#if data.canManage}
           <a class="button" href={`/admin/items/${data.item.id}`}>Manage</a>
         {/if}
       </div>

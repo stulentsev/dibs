@@ -75,10 +75,18 @@ test('invite-only signup scopes tenants to their own items', async ({ browser })
   await expect(publicPage.getByRole('link', { name: /Oak side table/ })).toBeVisible();
   await expect(publicPage.getByRole('link', { name: /Tenant bike/ })).toBeVisible();
 
+  await publicPage.getByRole('link', { name: /Oak side table/ }).click();
+  await expect(publicPage.getByRole('link', { name: 'Manage' })).toHaveCount(0);
+
+  await publicPage.goto('/');
   await publicPage.getByRole('link', { name: /Tenant bike/ }).click();
   await expect(publicPage.getByText('Offered by Neighbor Tess')).toBeVisible();
   const contact = publicPage.getByRole('link', { name: 'Message owner' });
   await expect(contact).toHaveAttribute('href', /^https:\/\/example\.com\/tess/);
+  await expect(publicPage.getByRole('link', { name: 'Manage' })).toBeVisible();
+
+  await ownerPage.goto(publicPage.url());
+  await expect(ownerPage.getByRole('link', { name: 'Manage' })).toBeVisible();
 
   // Owner still sees everything, including the tenant's item
   await ownerPage.goto('/admin');

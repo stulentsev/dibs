@@ -34,6 +34,7 @@ test('visitors can open an item and see its details', async ({ page }) => {
     'href',
     /example\.com\/contact.*Oak%20side%20table/
   );
+  await expect(page.getByRole('link', { name: 'Manage' })).toHaveCount(0);
 });
 
 test('published non-draft item details are reachable even when not available', async ({ page }) => {

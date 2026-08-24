@@ -11,7 +11,7 @@ export async function load({ params, locals }) {
 
   return {
     ...record,
-    admin: locals.user,
+    canManage: locals.user?.role === 'owner' || locals.user?.id === record.item.ownerId,
     contactLabel: contactLabel(),
     contactUrl: buildContactUrl(record.seller.contactUrl, record.item)
   };
