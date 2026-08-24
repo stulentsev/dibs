@@ -16,26 +16,33 @@ export async function ensureOwner(): Promise<void> {
   }
 
   const db = getDb();
-  const passwordHash = env('ADMIN_PASSWORD_HASH');
-  await db.execute(
-    sql`update "users" as "legacy_owner"
-        set "email" = ${email}, "password_hash" = ${passwordHash}, "updated_at" = now()
-        where "legacy_owner"."email" = ${LEGACY_OWNER_EMAIL}
-          and not exists (
-            select 1 from "users" as "configured_owner"
-            where "configured_owner"."email" = ${email}
-              and "configured_owner"."email" <> ${LEGACY_OWNER_EMAIL}
-          )`
-  );
-  await db
-    .insert(users)
-    .values({
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('dibs-owner-bootstrap'))`);
+
+    const existingOwners = await tx
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(eq(users.role, 'owner'));
+    const claimedOwner = existingOwners.find((owner) => owner.email !== LEGACY_OWNER_EMAIL);
+    if (claimedOwner) return;
+
+    const passwordHash = env('ADMIN_PASSWORD_HASH');
+    const legacyOwner = existingOwners.find((owner) => owner.email === LEGACY_OWNER_EMAIL);
+    if (legacyOwner) {
+      await tx
+        .update(users)
+        .set({ email, passwordHash, updatedAt: new Date() })
+        .where(eq(users.id, legacyOwner.id));
+      return;
+    }
+
+    await tx.insert(users).values({
       email,
       passwordHash,
       role: 'owner',
       status: 'active'
-    })
-    .onConflictDoNothing({ target: users.email });
+    });
+  });
 }
 
 export async function verifyLogin(email: string, password: string) {

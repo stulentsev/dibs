@@ -121,15 +121,37 @@ test('bootstrap normalizes a mixed-case, whitespace-padded ADMIN_EMAIL', async (
 });
 
 test('bootstrap normalizes a mixed-case, whitespace-padded ADMIN_USERNAME', async ({ page }) => {
-  await sql`delete from users where email = 'admin'`;
+  await resetAndMigrate();
+  await sql`delete from users where role = 'owner'`;
 
   delete process.env.ADMIN_EMAIL;
   process.env.ADMIN_USERNAME = ' Admin ';
   await ensureOwner();
 
-  expect(await ownerEmails()).toContain('admin');
+  expect(await ownerEmails()).toEqual(['admin']);
 
   await logInWithIdentifier(page, ' ADMIN ');
+});
 
-  await sql`delete from users where email = 'admin'`;
+test('claimed owner remains authoritative when bootstrap credentials change', async () => {
+  await resetAndMigrate();
+  delete process.env.ADMIN_USERNAME;
+  process.env.ADMIN_EMAIL = adminCredentials().identifier;
+  process.env.ADMIN_PASSWORD_HASH = adminPasswordHash;
+  await ensureOwner();
+
+  const [claimedOwner] = await sql<{ id: number; email: string; passwordHash: string }[]>`
+    select id, email, password_hash as "passwordHash" from users where role = 'owner'
+  `;
+  expect(claimedOwner).toBeDefined();
+
+  process.env.ADMIN_EMAIL = 'replacement@example.com';
+  process.env.ADMIN_PASSWORD_HASH = 'replacement-password-hash';
+  await ensureOwner();
+  await ensureOwner();
+
+  const owners = await sql<{ id: number; email: string; passwordHash: string }[]>`
+    select id, email, password_hash as "passwordHash" from users where role = 'owner'
+  `;
+  expect(owners).toEqual([claimedOwner]);
 });
