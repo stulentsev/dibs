@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { adminCredentials, resetCatalog } from './db';
+import {
+  adminCredentials,
+  installInviteExpirationTrigger,
+  removeInviteExpirationTrigger,
+  resetCatalog,
+  userExists
+} from './db';
 
 async function logInAsOwner(page: import('@playwright/test').Page) {
   const { identifier, password } = adminCredentials();
@@ -133,4 +139,34 @@ test('an invite link cannot be used twice', async ({ browser }) => {
   await secondPage.goto(inviteLink);
   await expect(secondPage.getByText('Invalid, expired, or already used', { exact: false })).toBeVisible();
   await second.close();
+});
+
+test('signup rolls back when the invite expires before atomic consumption', async ({ browser }) => {
+  await resetCatalog();
+
+  const ownerContext = await browser.newContext();
+  const ownerPage = await ownerContext.newPage();
+  await logInAsOwner(ownerPage);
+  const inviteLink = await createInviteLink(ownerPage);
+  await ownerContext.close();
+
+  const tenantEmail = 'expired-during-signup@example.com';
+  const tenantContext = await browser.newContext();
+  const tenantPage = await tenantContext.newPage();
+
+  await tenantPage.goto(inviteLink);
+  await expect(tenantPage.getByRole('heading', { name: 'Create your seller account' })).toBeVisible();
+
+  await installInviteExpirationTrigger();
+  try {
+    await tenantPage.getByLabel('Email').fill(tenantEmail);
+    await tenantPage.getByLabel(/^Password/).fill('supersafe123');
+    await tenantPage.getByRole('button', { name: 'Create account' }).click();
+
+    await expect(tenantPage.getByText('This invite link is invalid, expired, or already used.')).toBeVisible();
+    expect(await userExists(tenantEmail)).toBe(false);
+  } finally {
+    await removeInviteExpirationTrigger();
+    await tenantContext.close();
+  }
 });

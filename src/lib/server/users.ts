@@ -116,7 +116,13 @@ export async function signupWithInvite(input: SignupInput) {
       const consumed = await tx
         .update(invites)
         .set({ usedAt: new Date(), usedBy: user.id })
-        .where(and(eq(invites.token, input.token), isNull(invites.usedAt)))
+        .where(
+          and(
+            eq(invites.token, input.token),
+            isNull(invites.usedAt),
+            gt(invites.expiresAt, sql`clock_timestamp()`)
+          )
+        )
         .returning({ id: invites.id });
 
       if (consumed.length === 0) throw new Error('invite-unavailable');
