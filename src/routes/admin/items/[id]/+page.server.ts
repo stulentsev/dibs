@@ -6,6 +6,7 @@ import {
   getAdminItem,
   listPhotos,
   movePhoto,
+  sellerHasContact,
   updateItem,
   updatePhotoAlt,
   addPhoto
@@ -33,13 +34,16 @@ export async function load({ params, locals }) {
 
 export const actions = {
   update: async ({ request, params, locals }) => {
-    const { actor } = await requireOwnedItem(params, locals);
+    const { actor, item } = await requireOwnedItem(params, locals);
 
     const form = await request.formData();
     const parsed = parseItemForm(form);
 
     if (!parsed.ok) {
       return fail(400, { errors: parsed.errors });
+    }
+    if (parsed.values.published && !(await sellerHasContact(item.ownerId))) {
+      return fail(400, { errors: ['Add a contact method to the seller profile before publishing this item.'] });
     }
 
     await updateItem(parseItemId(params.id), parsed.values, actor);

@@ -4,8 +4,6 @@ const requiredKeys = [
   'SESSION_SECRET',
   'UPLOAD_DIR',
   'PUBLIC_SITE_URL',
-  'PUBLIC_CONTACT_LABEL',
-  'PUBLIC_CONTACT_URL_TEMPLATE',
 ] as const;
 
 type RequiredKey = (typeof requiredKeys)[number];

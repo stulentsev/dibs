@@ -10,6 +10,7 @@ const [owner] = await db.select().from(users).where(eq(users.role, 'owner')).lim
 if (!owner) {
   throw new Error('Owner account missing; cannot seed items.');
 }
+const canPublish = Boolean(owner.contactType && owner.contactValue);
 
 await db.insert(items).values([
   {
@@ -21,7 +22,7 @@ await db.insert(items).values([
     status: 'available',
     category: 'Furniture',
     pickupNotes: 'Porch pickup after 6pm.',
-    published: true
+    published: canPublish
   },
   {
     ownerId: owner.id,
@@ -32,7 +33,7 @@ await db.insert(items).values([
     status: 'available',
     category: 'Garden',
     pickupNotes: 'Please take the whole box.',
-    published: true
+    published: canPublish
   },
   {
     ownerId: owner.id,
@@ -47,3 +48,4 @@ await db.insert(items).values([
 ]);
 
 console.log('Seeded sample items.');
+if (!canPublish) console.log('Complete the owner profile before publishing the sample items.');

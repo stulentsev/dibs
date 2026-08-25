@@ -48,7 +48,7 @@
             {#if tenant.contactType && tenant.contactValue}
               <code class="invite-link">{tenant.contactType}: {tenant.contactValue}</code>
             {:else}
-              <p class="muted">No contact method set. Buyers fall back to the site-wide contact.</p>
+              <p class="muted">No contact method set. This seller cannot publish items.</p>
             {/if}
           </div>
           <div class="row-actions">

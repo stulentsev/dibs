@@ -132,6 +132,17 @@ export async function signupWithInvite(input: SignupInput) {
 
   try {
     return await db.transaction(async (tx) => {
+      const [candidate] = await tx
+        .select({ identity: invites.identity })
+        .from(invites)
+        .where(eq(invites.token, input.token))
+        .limit(1);
+      if (!candidate) throw new SignupError('invite-unavailable');
+
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${`dibs-account-identity:${candidate.identity}`}))`,
+      );
+
       const [invite] = await tx
         .update(invites)
         .set({ usedAt: sql`clock_timestamp()` })

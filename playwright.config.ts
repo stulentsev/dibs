@@ -29,10 +29,7 @@ export default defineConfig({
       UPLOAD_DIR: './tmp/e2e-uploads',
       BODY_SIZE_LIMIT: '30M',
       PUBLIC_SITE_URL: baseURL,
-      ORIGIN: baseURL,
-      PUBLIC_CONTACT_LABEL: 'Message owner',
-      PUBLIC_CONTACT_URL_TEMPLATE:
-        'https://example.com/contact?title=%7Btitle%7D&url=%7Burl%7D'
+      ORIGIN: baseURL
     }
   },
   projects: [

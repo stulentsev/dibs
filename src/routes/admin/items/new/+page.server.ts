@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { requireUser } from '$lib/server/auth';
-import { createItem } from '$lib/server/db/queries';
+import { createItem, sellerHasContact } from '$lib/server/db/queries';
 import { parseItemForm } from '$lib/server/forms';
 
 export const actions = {
@@ -12,6 +12,9 @@ export const actions = {
 
     if (!parsed.ok) {
       return fail(400, { errors: parsed.errors });
+    }
+    if (parsed.values.published && !(await sellerHasContact(actor.id))) {
+      return fail(400, { errors: ['Add a contact method to your profile before publishing an item.'] });
     }
 
     const item = await createItem(parsed.values, actor.id);

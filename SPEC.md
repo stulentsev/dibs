@@ -114,19 +114,6 @@ Required:
 - `SESSION_SECRET`
 - `UPLOAD_DIR`
 - `PUBLIC_SITE_URL`
-- `PUBLIC_CONTACT_LABEL`
-- `PUBLIC_CONTACT_URL_TEMPLATE`
-
-`PUBLIC_CONTACT_URL_TEMPLATE` should support interpolation for the item title and URL. For example:
-
-```txt
-https://wa.me/15555555555?text=Hi%2C%20I%27m%20interested%20in%20the%20%7Btitle%7D%3A%20%7Burl%7D
-```
-
-The app should replace:
-
-- `{title}` with the item title
-- `{url}` with the public item URL
 
 ## 6. Data Model
 
@@ -243,14 +230,9 @@ Item detail pages must show:
 Contact behavior:
 
 - no in-app messaging
-- contact button uses `PUBLIC_CONTACT_LABEL`
-- contact URL is generated from the item seller's typed contact method when set, falling back to `PUBLIC_CONTACT_URL_TEMPLATE`
+- contact URL and label are generated from the item seller's typed contact method
 - WhatsApp numbers are normalized to E.164 and email addresses are normalized to lowercase
-- templates interpolate `{title}` with the item title and `{url}` with the public item URL, for example:
-
-```txt
-https://wa.me/15555555555?text=Hi%2C%20I%27m%20interested%20in%20the%20%7Btitle%7D%3A%20%7Burl%7D
-```
+- sellers must configure a contact method before publishing an item
 
 ## 8. Admin Area
 

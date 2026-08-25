@@ -17,18 +17,21 @@ function ownership(actor: Actor) {
 export async function listPublicAvailableItems() {
   const db = getDb();
   const rows = await db
-    .select()
+    .select({ item: items })
     .from(items)
+    .innerJoin(users, eq(items.ownerId, users.id))
     .where(
       and(
         eq(items.published, true),
         inArray(items.status, ['available', 'claimed']),
-        isNull(items.deletedAt)
+        isNull(items.deletedAt),
+        isNotNull(users.contactType),
+        isNotNull(users.contactValue)
       )
     )
     .orderBy(desc(items.createdAt));
 
-  return withFirstPhotos(rows);
+  return withFirstPhotos(rows.map((row) => row.item));
 }
 
 export async function getPublicItem(id: number) {
@@ -47,12 +50,14 @@ export async function getPublicItem(id: number) {
         eq(items.id, id),
         eq(items.published, true),
         notInArray(items.status, ['draft', 'hidden']),
-        isNull(items.deletedAt)
+        isNull(items.deletedAt),
+        isNotNull(users.contactType),
+        isNotNull(users.contactValue)
       )
     )
     .limit(1);
 
-  if (!row) return null;
+  if (!row || !row.sellerContactType || !row.sellerContactValue) return null;
   return {
     item: row.item,
     photos: await listPhotos(row.item.id),
@@ -62,6 +67,21 @@ export async function getPublicItem(id: number) {
       contactValue: row.sellerContactValue
     }
   };
+}
+
+export async function sellerHasContact(userId: number): Promise<boolean> {
+  const [user] = await getDb()
+    .select({ id: users.id })
+    .from(users)
+    .where(
+      and(
+        eq(users.id, userId),
+        isNotNull(users.contactType),
+        isNotNull(users.contactValue)
+      )
+    )
+    .limit(1);
+  return Boolean(user);
 }
 
 export async function listAdminItems(actor: Actor, options: { deleted?: boolean } = {}) {

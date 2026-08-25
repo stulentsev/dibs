@@ -38,10 +38,6 @@ Required:
 - `BODY_SIZE_LIMIT` for production multipart request size, default `30M` in Docker Compose
 - `PUBLIC_SITE_URL`
 - `ORIGIN` when running the production Node server behind Docker or a proxy
-- `PUBLIC_CONTACT_LABEL`
-- `PUBLIC_CONTACT_URL_TEMPLATE`
-
-`PUBLIC_CONTACT_URL_TEMPLATE` supports `{title}` and `{url}` placeholders. URL-encoded placeholders like `%7Btitle%7D` and `%7Burl%7D` are also handled. For WhatsApp, use a `wa.me` URL with your phone number in international format without the leading `+`, spaces, or punctuation.
 
 `ORIGIN` must match the browser origin used to access the app, for example `http://localhost:3000` for local Docker Compose or `https://dibs.example.com` in production. SvelteKit uses this for CSRF protection on admin form posts.
 
@@ -68,7 +64,7 @@ As the owner you can:
 
 Sellers choose a unique username during signup. From **Profile** (`/admin/profile`), every account can edit its username, display name, and contact method. Contact methods are either a normalized WhatsApp number or email address; account identity cannot be edited.
 
-Sellers only ever see and manage their own items. All published items appear together in the public catalog; item detail pages show the seller's display name when set, and the contact button uses the seller's typed contact method, falling back to `PUBLIC_CONTACT_URL_TEMPLATE` when none is configured.
+Sellers only ever see and manage their own items. All published items appear together in the public catalog; item detail pages show the seller's display name when set, and the contact button uses the seller's typed contact method. An account must configure a contact method before publishing an item.
 
 ## Database Commands
 
@@ -134,8 +130,6 @@ UPLOAD_DIR=/app/uploads
 BODY_SIZE_LIMIT=30M
 PUBLIC_SITE_URL=https://your-dibs-domain.example
 ORIGIN=https://your-dibs-domain.example
-PUBLIC_CONTACT_LABEL=Message owner
-PUBLIC_CONTACT_URL_TEMPLATE=https://wa.me/15555555555?text=Hi%2C%20I%27m%20interested%20in%20the%20%7Btitle%7D%3A%20%7Burl%7D
 ```
 
 ## Quality Checks

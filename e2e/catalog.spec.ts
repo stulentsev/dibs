@@ -32,9 +32,9 @@ test('visitors can open an item and see its details', async ({ page }) => {
   await expect(page.getByText('Small solid wood side table with a few surface marks.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Pickup' })).toBeVisible();
   await expect(page.getByText('Porch pickup after 6pm.')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Message owner' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Message seller on WhatsApp' })).toHaveAttribute(
     'href',
-    /example\.com\/contact.*Oak%20side%20table/
+    /^https:\/\/wa\.me\/15551234567\?text=/
   );
   await expect(page.getByRole('link', { name: 'Manage' })).toHaveCount(0);
 });

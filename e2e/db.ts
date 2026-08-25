@@ -37,6 +37,11 @@ export async function resetCatalog(): Promise<SeededItems> {
   try {
     await sql`truncate table item_photos, items restart identity cascade`;
     const ownerId = await ownerUserId(sql);
+    await sql`
+      update users
+      set contact_type = 'whatsapp', contact_value = '+15551234567'
+      where id = ${ownerId}
+    `;
 
     const rows = await sql<{ id: number; title: string }[]>`
       insert into items (owner_id, title, description, price_cents, is_free, status, category, pickup_notes, published)
@@ -101,6 +106,20 @@ export async function resetCatalog(): Promise<SeededItems> {
       draftLamp: rows.find((row) => row.title === 'Desk lamp')!.id,
       claimedChair: rows.find((row) => row.title === 'Reading chair')!.id
     };
+  } finally {
+    await sql.end();
+  }
+}
+
+export async function clearOwnerContact(): Promise<void> {
+  const sql = postgres(e2eDatabaseUrl, { max: 1, prepare: false });
+  try {
+    const ownerId = await ownerUserId(sql);
+    await sql`
+      update users
+      set contact_type = null, contact_value = null
+      where id = ${ownerId}
+    `;
   } finally {
     await sql.end();
   }

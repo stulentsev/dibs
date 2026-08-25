@@ -21,7 +21,7 @@
   <div class="page-title">
     <div>
       <h1>Profile</h1>
-      <p>Update how you sign in and how buyers contact you.</p>
+      <p>Update how you sign in and how buyers contact you. A contact method is required to publish items.</p>
     </div>
   </div>
 

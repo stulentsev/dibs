@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { adminCredentials, resetCatalog } from './db';
+import { adminCredentials, clearOwnerContact, resetCatalog } from './db';
 
 async function logIn(page: import('@playwright/test').Page) {
   const { identifier, password } = adminCredentials();
@@ -62,6 +62,21 @@ test('admin can create a published item and it appears publicly', async ({ page 
   const card = page.getByRole('link', { name: /Stack of moving boxes/ });
   await expect(card).toBeVisible();
   await expect(card.getByText('Free')).toBeVisible();
+});
+
+test('admin must configure contact before publishing', async ({ page }) => {
+  await clearOwnerContact();
+  await logIn(page);
+
+  await page.goto('/admin/items/new');
+  await page.getByLabel('Title').fill('Contactless listing');
+  await page.getByLabel('Description').fill('Should remain unpublished.');
+  await page.getByLabel('Status').selectOption('available');
+  await page.getByLabel('Published').check();
+  await page.getByRole('button', { name: 'Create item' }).click();
+
+  await expect(page.getByText('Add a contact method to your profile before publishing an item.')).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/items\/new$/);
 });
 
 test('admin can edit an item from the admin list', async ({ page }) => {
