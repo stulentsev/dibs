@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { redirect } from '@sveltejs/kit';
 import type { Cookies } from '@sveltejs/kit';
 import { env } from './config';
+import type { ContactType } from './contact-method';
 
 const cookieName = 'dibs_admin';
 const oneWeekSeconds = 60 * 60 * 24 * 7;
@@ -14,10 +15,12 @@ type SessionPayload = {
 
 export type SessionUser = {
   id: number;
-  email: string;
+  identity: string;
+  username: string;
   role: 'owner' | 'tenant';
   displayName: string | null;
-  contactUrl: string | null;
+  contactType: ContactType | null;
+  contactValue: string | null;
 };
 
 type SessionUserRecord = SessionUser & { tokenVersion: number };

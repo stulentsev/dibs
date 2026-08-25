@@ -25,16 +25,25 @@
       {/if}
 
       <label>
-        Email
-        <input name="email" type="email" autocomplete="email" value={form?.email ?? ''} required />
+        Account identity
+        <input value={data.identity ?? ''} readonly />
+        <span class="muted">This WhatsApp number is fixed by your invite and cannot be changed.</span>
+      </label>
+      <label>
+        Username
+        <input
+          name="username"
+          autocomplete="username"
+          minlength="3"
+          maxlength="64"
+          pattern="[A-Za-z0-9][A-Za-z0-9._-]*"
+          value={form?.username ?? ''}
+          required
+        />
       </label>
       <label>
         Display name <span class="muted">(optional, shown on your items)</span>
         <input name="display_name" maxlength="80" value={form?.displayName ?? ''} />
-      </label>
-      <label>
-        Contact link <span class="muted">(optional, e.g. WhatsApp click-to-chat URL)</span>
-        <input name="contact_url" type="url" placeholder="https://" />
       </label>
       <label>
         Password <span class="muted">(8 characters, at most 72 UTF-8 bytes)</span>

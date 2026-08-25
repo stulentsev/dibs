@@ -85,6 +85,7 @@ img {
 .admin-bar nav {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 18px;
 }
 
@@ -498,6 +499,12 @@ textarea {
 }
 
 @media (max-width: 760px) {
+  .admin-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-block: 12px;
+  }
+
   .detail,
   .admin-columns,
   .admin-row,

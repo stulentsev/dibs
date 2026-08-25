@@ -30,6 +30,18 @@
 
   <form class="panel" method="POST" action="?/create" use:enhance>
     <label>
+      Seller WhatsApp number
+      <input
+        name="whatsapp_number"
+        type="tel"
+        autocomplete="tel"
+        placeholder="+1 555 123 4567"
+        value={form?.whatsappNumber ?? ''}
+        required
+      />
+      <span class="muted">This becomes the seller's immutable account identity.</span>
+    </label>
+    <label>
       Expires after (days)
       <input name="expires_days" type="number" min="1" max="30" value="7" />
     </label>
@@ -45,6 +57,7 @@
           <div>
             <h2>Invite #{invite.id}</h2>
             <div class="meta-row">
+              <span>{invite.identity}</span>
               <span>Created {formatDate(invite.createdAt)}</span>
               <span>Expires {formatDate(invite.expiresAt)}</span>
               {#if invite.usedAt}

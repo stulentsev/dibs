@@ -37,21 +37,22 @@
       {#each data.tenants as tenant (tenant.id)}
         <article class="admin-row">
           <div>
-            <h2>{tenant.displayName || tenant.email}</h2>
+            <h2>{tenant.displayName || tenant.username}</h2>
             <div class="meta-row">
-              <span>{tenant.email}</span>
+              <span>@{tenant.username}</span>
+              <span>{tenant.identity}</span>
               <span>{tenant.itemCount} item{tenant.itemCount === 1 ? '' : 's'}</span>
               <span>{tenant.status === 'active' ? 'Active' : 'Disabled'}</span>
               <span>Joined {formatDate(tenant.createdAt)}</span>
             </div>
-            {#if tenant.contactUrl}
-              <code class="invite-link">{tenant.contactUrl}</code>
+            {#if tenant.contactType && tenant.contactValue}
+              <code class="invite-link">{tenant.contactType}: {tenant.contactValue}</code>
             {:else}
-              <p class="muted">No contact link set — buyers fall back to the site-wide contact.</p>
+              <p class="muted">No contact method set. Buyers fall back to the site-wide contact.</p>
             {/if}
           </div>
           <div class="row-actions">
-            <div class="quick-actions" role="group" aria-label={`Actions for ${tenant.email}`}>
+            <div class="quick-actions" role="group" aria-label={`Actions for ${tenant.username}`}>
               <form method="POST" action="?/toggle" use:enhance>
                 <input type="hidden" name="id" value={tenant.id} />
                 <input type="hidden" name="status" value={tenant.status === 'active' ? 'disable' : 'enable'} />

@@ -12,72 +12,19 @@ export type SeededItems = {
 
 export function adminCredentials() {
   return {
-    identifier: 'owner@example.com',
-    password: 'password'
+    identifier: 'owner',
+    password: 'password',
   };
 }
 
 export const adminPasswordHash = '$2b$10$LHZd5YjLu078d/JBmcNSeeye3.mDdazvPHi1WQGOSnc5IQJNN3phm';
-
-export async function installInviteExpirationTrigger(): Promise<void> {
-  const sql = postgres(e2eDatabaseUrl, { max: 1, prepare: false });
-
-  try {
-    await sql`
-      create or replace function e2e_expire_invites_before_tenant_insert()
-      returns trigger
-      language plpgsql
-      as $$
-      begin
-        update invites
-        set expires_at = clock_timestamp() - interval '1 second'
-        where used_at is null;
-        return new;
-      end;
-      $$
-    `;
-    await sql`
-      create trigger e2e_expire_invites_before_tenant_insert
-      before insert on users
-      for each row
-      when (new.role = 'tenant')
-      execute function e2e_expire_invites_before_tenant_insert()
-    `;
-  } finally {
-    await sql.end();
-  }
-}
-
-export async function removeInviteExpirationTrigger(): Promise<void> {
-  const sql = postgres(e2eDatabaseUrl, { max: 1, prepare: false });
-
-  try {
-    await sql`drop trigger if exists e2e_expire_invites_before_tenant_insert on users`;
-    await sql`drop function if exists e2e_expire_invites_before_tenant_insert()`;
-  } finally {
-    await sql.end();
-  }
-}
-
-export async function userExists(email: string): Promise<boolean> {
-  const sql = postgres(e2eDatabaseUrl, { max: 1, prepare: false });
-
-  try {
-    const rows = await sql<{ exists: boolean }[]>`
-      select exists(select 1 from users where email = ${email})
-    `;
-    return rows[0]?.exists ?? false;
-  } finally {
-    await sql.end();
-  }
-}
 
 async function ownerUserId(sql: ReturnType<typeof postgres>) {
   const rows = await sql<{ id: number }[]>`
     select id
     from users
     where role = 'owner'
-    order by (email = ${adminCredentials().identifier}) desc, id
+    order by (username = ${adminCredentials().identifier}) desc, id
     limit 1
   `;
   if (!rows[0]) throw new Error('Expected migrations to create the bootstrap owner.');

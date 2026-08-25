@@ -5,7 +5,7 @@ import { itemPhotos, items, users, type NewItem } from './schema';
 
 export { statuses, isItemStatus };
 
-export type Actor = {
+type Actor = {
   id: number;
   role: 'owner' | 'tenant';
 };
@@ -37,7 +37,8 @@ export async function getPublicItem(id: number) {
     .select({
       item: items,
       sellerName: users.displayName,
-      sellerContactUrl: users.contactUrl
+      sellerContactType: users.contactType,
+      sellerContactValue: users.contactValue
     })
     .from(items)
     .innerJoin(users, eq(items.ownerId, users.id))
@@ -55,7 +56,11 @@ export async function getPublicItem(id: number) {
   return {
     item: row.item,
     photos: await listPhotos(row.item.id),
-    seller: { name: row.sellerName, contactUrl: row.sellerContactUrl }
+    seller: {
+      name: row.sellerName,
+      contactType: row.sellerContactType,
+      contactValue: row.sellerContactValue
+    }
   };
 }
 
@@ -81,8 +86,7 @@ export async function getAdminItem(id: number, actor: Actor) {
     .from(items)
     .where(and(eq(items.id, id), ownership(actor)))
     .limit(1);
-  if (!item) return null;
-  return { item, photos: await listPhotos(id) };
+  return item ?? null;
 }
 
 export async function createItem(values: Omit<NewItem, 'ownerId'>, ownerId: number) {

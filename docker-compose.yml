@@ -24,7 +24,7 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgres://dibs:dibs@postgres:5432/dibs
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-owner@example.com}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-owner}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH before running docker compose}
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET before running docker compose}
       UPLOAD_DIR: /app/uploads

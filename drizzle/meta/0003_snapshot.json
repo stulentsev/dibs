@@ -1,5 +1,5 @@
 {
-  "id": "12da2859-9dd9-4cb3-9eec-43ea16334080",
+  "id": "d5804172-8744-4314-b28f-d5996ffefdfb",
   "prevId": "35ae917a-928b-4673-b553-0e33a3a7dd57",
   "version": "7",
   "dialect": "postgresql",
@@ -17,6 +17,12 @@
         "token": {
           "name": "token",
           "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "identity": {
+          "name": "identity",
+          "type": "varchar(16)",
           "primaryKey": false,
           "notNull": true
         },
@@ -92,7 +98,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "invites_identity_e164": {
+          "name": "invites_identity_e164",
+          "value": "\"invites\".\"identity\" ~ '^\\+[1-9][0-9]{7,14}$'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.item_photos": {
@@ -281,9 +292,15 @@
           "primaryKey": true,
           "notNull": true
         },
-        "email": {
-          "name": "email",
-          "type": "varchar(254)",
+        "identity": {
+          "name": "identity",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true
         },
@@ -307,11 +324,25 @@
           "primaryKey": false,
           "notNull": false
         },
-        "contact_url": {
-          "name": "contact_url",
-          "type": "varchar(500)",
+        "contact_type": {
+          "name": "contact_type",
+          "type": "contact_method_type",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
+        },
+        "contact_value": {
+          "name": "contact_value",
+          "type": "varchar(254)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bootstrap_pending": {
+          "name": "bootstrap_pending",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "status": {
           "name": "status",
@@ -347,20 +378,48 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "users_email_unique": {
-          "name": "users_email_unique",
+        "users_identity_unique": {
+          "name": "users_identity_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "email"
+            "identity"
+          ]
+        },
+        "users_username_unique": {
+          "name": "users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
           ]
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "users_username_format": {
+          "name": "users_username_format",
+          "value": "\"users\".\"username\" ~ '^[a-z0-9][a-z0-9._-]{2,63}$'"
+        },
+        "users_tenant_identity_e164": {
+          "name": "users_tenant_identity_e164",
+          "value": "\"users\".\"role\" = 'owner' or \"users\".\"identity\" ~ '^\\+[1-9][0-9]{7,14}$'"
+        },
+        "users_contact_method_valid": {
+          "name": "users_contact_method_valid",
+          "value": "(\"users\".\"contact_type\" is null and \"users\".\"contact_value\" is null)\n        or (\"users\".\"contact_type\" is not null and \"users\".\"contact_value\" is not null and (\n          (\"users\".\"contact_type\" = 'whatsapp' and \"users\".\"contact_value\" ~ '^\\+[1-9][0-9]{7,14}$')\n          or (\"users\".\"contact_type\" = 'email' and \"users\".\"contact_value\" = lower(\"users\".\"contact_value\") and \"users\".\"contact_value\" ~ '^[^[:space:]@?&#]+@[^[:space:]@?&#]+\\.[^[:space:]@?&#]+$')\n        ))"
+        }
+      },
       "isRLSEnabled": false
     }
   },
   "enums": {
+    "public.contact_method_type": {
+      "name": "contact_method_type",
+      "schema": "public",
+      "values": [
+        "whatsapp",
+        "email"
+      ]
+    },
     "public.item_status": {
       "name": "item_status",
       "schema": "public",

@@ -9,6 +9,7 @@
     <a class="brand" href="/admin">dibs admin</a>
     <nav>
       <a href="/">Public site</a>
+      <a href="/admin/profile">Profile</a>
       {#if isOwner}
         <a href="/admin/invites">Invites</a>
         <a href="/admin/tenants">Tenants</a>

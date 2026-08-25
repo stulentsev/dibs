@@ -21,14 +21,14 @@ function parseItemId(param: string): number {
 
 async function requireOwnedItem(params: { id: string }, locals: App.Locals) {
   const actor = requireUser(locals);
-  const record = await getAdminItem(parseItemId(params.id), actor);
-  if (!record) error(404, 'Item not found');
-  return { actor, record };
+  const item = await getAdminItem(parseItemId(params.id), actor);
+  if (!item) error(404, 'Item not found');
+  return { actor, item };
 }
 
 export async function load({ params, locals }) {
-  const { record } = await requireOwnedItem(params, locals);
-  return record;
+  const { item } = await requireOwnedItem(params, locals);
+  return { item, photos: await listPhotos(item.id) };
 }
 
 export const actions = {
@@ -54,8 +54,8 @@ export const actions = {
   },
 
   uploadPhotos: async ({ request, params, locals }) => {
-    const { record } = await requireOwnedItem(params, locals);
-    const id = record.item.id;
+    const { item } = await requireOwnedItem(params, locals);
+    const id = item.id;
 
     let form: FormData;
     try {
@@ -85,8 +85,8 @@ export const actions = {
   },
 
   deletePhoto: async ({ request, params, locals }) => {
-    const { record } = await requireOwnedItem(params, locals);
-    const itemId = record.item.id;
+    const { item } = await requireOwnedItem(params, locals);
+    const itemId = item.id;
 
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
@@ -99,8 +99,8 @@ export const actions = {
   },
 
   updatePhotoAlt: async ({ request, params, locals }) => {
-    const { record } = await requireOwnedItem(params, locals);
-    const itemId = record.item.id;
+    const { item } = await requireOwnedItem(params, locals);
+    const itemId = item.id;
 
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
@@ -113,8 +113,8 @@ export const actions = {
   },
 
   movePhoto: async ({ request, params, locals }) => {
-    const { record } = await requireOwnedItem(params, locals);
-    const itemId = record.item.id;
+    const { item } = await requireOwnedItem(params, locals);
+    const itemId = item.id;
 
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));

@@ -12,7 +12,13 @@ export async function load({ params, locals }) {
   return {
     ...record,
     canManage: locals.user?.role === 'owner' || locals.user?.id === record.item.ownerId,
-    contactLabel: contactLabel(),
-    contactUrl: buildContactUrl(record.seller.contactUrl, record.item)
+    contactLabel: contactLabel(record.seller.contactType),
+    contactUrl: buildContactUrl(
+      {
+        type: record.seller.contactType,
+        value: record.seller.contactValue
+      },
+      record.item
+    )
   };
 }

@@ -31,7 +31,7 @@ The public catalog is at `http://localhost:5173`; the admin area is at `/admin`.
 Required:
 
 - `DATABASE_URL`
-- `ADMIN_EMAIL` or `ADMIN_USERNAME`
+- `ADMIN_USERNAME`
 - `ADMIN_PASSWORD_HASH`
 - `SESSION_SECRET`
 - `UPLOAD_DIR`
@@ -59,14 +59,16 @@ Use the printed value as `ADMIN_PASSWORD_HASH`.
 
 ## Owner Login and Seller Invites
 
-The first login seeds the owner account from `ADMIN_EMAIL` (or `ADMIN_USERNAME`) and `ADMIN_PASSWORD_HASH`; after that the database row is the source of truth, and changing those environment variables has no effect on an existing owner account.
+The first login claims the pending owner account using `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH`. After that the database row is the source of truth, and changing those environment variables has no effect on the established owner account.
 
 As the owner you can:
 
-- **Invites** (`/admin/invites`): create single-use signup links that expire in 1–30 days, and revoke unused ones. Anyone with a valid link can self-register as a seller at `/signup`.
+- **Invites** (`/admin/invites`): create single-use signup links for a WhatsApp number that expire in 1–30 days, and revoke unused ones. The normalized number becomes the seller's immutable account identity.
 - **Sellers** (`/admin/tenants`): see seller accounts and their item counts, disable or re-enable accounts (disabling signs them out immediately), and issue one-time temporary passwords.
 
-Sellers only ever see and manage their own items. All published items appear together in the public catalog; item detail pages show the seller's display name when set, and the contact button uses the seller's contact link, falling back to `PUBLIC_CONTACT_URL_TEMPLATE`. Sellers without their own contact link fall back to the site-wide template.
+Sellers choose a unique username during signup. From **Profile** (`/admin/profile`), every account can edit its username, display name, and contact method. Contact methods are either a normalized WhatsApp number or email address; account identity cannot be edited.
+
+Sellers only ever see and manage their own items. All published items appear together in the public catalog; item detail pages show the seller's display name when set, and the contact button uses the seller's typed contact method, falling back to `PUBLIC_CONTACT_URL_TEMPLATE` when none is configured.
 
 ## Database Commands
 
@@ -125,7 +127,7 @@ Required app environment variables for Coolify:
 
 ```txt
 DATABASE_URL=postgres://...
-ADMIN_EMAIL=owner@example.com
+ADMIN_USERNAME=owner
 ADMIN_PASSWORD_HASH=...
 SESSION_SECRET=...
 UPLOAD_DIR=/app/uploads
