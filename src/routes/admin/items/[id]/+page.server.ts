@@ -1,11 +1,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/auth';
+import { requireUser } from '$lib/server/auth';
 import {
   deleteItem,
   deletePhoto,
   getAdminItem,
   listPhotos,
   movePhoto,
+  sellerHasContact,
   updateItem,
   updatePhotoAlt,
   addPhoto
@@ -19,42 +20,47 @@ function parseItemId(param: string): number {
   return id;
 }
 
-export async function load({ params, locals }) {
-  requireAdmin(locals);
+async function requireOwnedItem(params: { id: string }, locals: App.Locals) {
+  const actor = requireUser(locals);
+  const item = await getAdminItem(parseItemId(params.id), actor);
+  if (!item) error(404, 'Item not found');
+  return { actor, item };
+}
 
-  const record = await getAdminItem(parseItemId(params.id));
-  if (!record) error(404, 'Item not found');
-  return record;
+export async function load({ params, locals }) {
+  const { item } = await requireOwnedItem(params, locals);
+  return { item, photos: await listPhotos(item.id) };
 }
 
 export const actions = {
   update: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { actor, item } = await requireOwnedItem(params, locals);
 
-    const id = parseItemId(params.id);
     const form = await request.formData();
     const parsed = parseItemForm(form);
 
     if (!parsed.ok) {
       return fail(400, { errors: parsed.errors });
     }
+    if (parsed.values.published && !(await sellerHasContact(item.ownerId))) {
+      return fail(400, { errors: ['Add a contact method to the seller profile before publishing this item.'] });
+    }
 
-    await updateItem(id, parsed.values);
+    await updateItem(parseItemId(params.id), parsed.values, actor);
     return { success: 'Item saved.' };
   },
 
   deleteItem: async ({ params, locals }) => {
-    requireAdmin(locals);
+    const { actor } = await requireOwnedItem(params, locals);
 
-    const id = parseItemId(params.id);
-    await deleteItem(id);
+    await deleteItem(parseItemId(params.id), actor);
     redirect(303, '/admin');
   },
 
   uploadPhotos: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { item } = await requireOwnedItem(params, locals);
+    const id = item.id;
 
-    const id = parseItemId(params.id);
     let form: FormData;
     try {
       form = await request.formData();
@@ -83,9 +89,9 @@ export const actions = {
   },
 
   deletePhoto: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { item } = await requireOwnedItem(params, locals);
+    const itemId = item.id;
 
-    const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
     if (!photoId) return fail(400, { errors: ['Invalid photo.'] });
@@ -97,9 +103,9 @@ export const actions = {
   },
 
   updatePhotoAlt: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { item } = await requireOwnedItem(params, locals);
+    const itemId = item.id;
 
-    const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
     const altText = String(form.get('alt_text') ?? '').trim() || null;
@@ -111,9 +117,9 @@ export const actions = {
   },
 
   movePhoto: async ({ request, params, locals }) => {
-    requireAdmin(locals);
+    const { item } = await requireOwnedItem(params, locals);
+    const itemId = item.id;
 
-    const itemId = parseItemId(params.id);
     const form = await request.formData();
     const photoId = parsePositiveInt(form.get('photo_id'));
     const direction = form.get('direction') === 'down' ? 'down' : 'up';

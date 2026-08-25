@@ -1,6 +1,6 @@
 # dibs
 
-`dibs` is a small self-hosted garage sale catalog. Public visitors can browse published items and use an external contact link. Only the owner can manage listings.
+`dibs` is a small self-hosted garage sale catalog. Public visitors browse one shared catalog of published items and use each item's contact link. The owner manages the site and can invite sellers through single-use invite links; each seller manages only their own items.
 
 ## Local Development
 
@@ -31,17 +31,13 @@ The public catalog is at `http://localhost:5173`; the admin area is at `/admin`.
 Required:
 
 - `DATABASE_URL`
-- `ADMIN_EMAIL` or `ADMIN_USERNAME`
+- `ADMIN_USERNAME`
 - `ADMIN_PASSWORD_HASH`
 - `SESSION_SECRET`
 - `UPLOAD_DIR`
 - `BODY_SIZE_LIMIT` for production multipart request size, default `30M` in Docker Compose
 - `PUBLIC_SITE_URL`
 - `ORIGIN` when running the production Node server behind Docker or a proxy
-- `PUBLIC_CONTACT_LABEL`
-- `PUBLIC_CONTACT_URL_TEMPLATE`
-
-`PUBLIC_CONTACT_URL_TEMPLATE` supports `{title}` and `{url}` placeholders. URL-encoded placeholders like `%7Btitle%7D` and `%7Burl%7D` are also handled. For WhatsApp, use a `wa.me` URL with your phone number in international format without the leading `+`, spaces, or punctuation.
 
 `ORIGIN` must match the browser origin used to access the app, for example `http://localhost:3000` for local Docker Compose or `https://dibs.example.com` in production. SvelteKit uses this for CSRF protection on admin form posts.
 
@@ -57,12 +53,24 @@ pnpm password:hash "your-admin-password"
 
 Use the printed value as `ADMIN_PASSWORD_HASH`.
 
+## Owner Login and Seller Invites
+
+The first login claims the pending owner account using `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH`. After that the database row is the source of truth, and changing those environment variables has no effect on the established owner account.
+
+As the owner you can:
+
+- **Invites** (`/admin/invites`): create single-use signup links for a WhatsApp number that expire in 1–30 days, and revoke unused ones. The normalized number becomes the seller's immutable account identity.
+- **Sellers** (`/admin/tenants`): see seller accounts and their item counts, disable or re-enable accounts (disabling signs them out immediately), and issue one-time temporary passwords.
+
+Sellers choose a unique username during signup. From **Profile** (`/admin/profile`), every account can edit its username, display name, and contact method. Contact methods are either a normalized WhatsApp number or email address; account identity cannot be edited.
+
+Sellers only ever see and manage their own items. All published items appear together in the public catalog; item detail pages show the seller's display name when set, and the contact button uses the seller's typed contact method. An account must configure a contact method before publishing an item.
+
 ## Database Commands
 
 ```sh
 pnpm db:generate  # generate Drizzle migrations from schema changes
 pnpm db:migrate   # apply migrations
-pnpm db:seed      # optional sample items
 ```
 
 ## Docker Compose
@@ -114,15 +122,13 @@ Required app environment variables for Coolify:
 
 ```txt
 DATABASE_URL=postgres://...
-ADMIN_EMAIL=owner@example.com
+ADMIN_USERNAME=owner
 ADMIN_PASSWORD_HASH=...
 SESSION_SECRET=...
 UPLOAD_DIR=/app/uploads
 BODY_SIZE_LIMIT=30M
 PUBLIC_SITE_URL=https://your-dibs-domain.example
 ORIGIN=https://your-dibs-domain.example
-PUBLIC_CONTACT_LABEL=Message owner
-PUBLIC_CONTACT_URL_TEMPLATE=https://wa.me/15555555555?text=Hi%2C%20I%27m%20interested%20in%20the%20%7Btitle%7D%3A%20%7Burl%7D
 ```
 
 ## Quality Checks

@@ -1,8 +1,10 @@
 import { isItemStatus, type ItemStatus } from '../item-status';
 import type { NewItem } from './db/schema';
 
+export type ItemFormValues = Omit<NewItem, 'ownerId'>;
+
 export type ItemFormResult =
-  | { ok: true; values: NewItem }
+  | { ok: true; values: ItemFormValues }
   | { ok: false; errors: string[]; values: Record<string, FormDataEntryValue> };
 
 function text(form: FormData, name: string): string {
@@ -41,7 +43,7 @@ export function parseItemForm(form: FormData): ItemFormResult {
   if (!description) errors.push('Description is required.');
   if (!isItemStatus(rawStatus)) errors.push('Status is invalid.');
 
-  const values: NewItem = {
+  const values: ItemFormValues = {
     title,
     description,
     isFree,

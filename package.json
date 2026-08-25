@@ -8,12 +8,12 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "node build",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc --project ./tsconfig.e2e.json",
+    "check:e2e": "tsc --project ./tsconfig.e2e.json",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts",
     "password:hash": "tsx scripts/hash-password.ts"
   },
   "dependencies": {

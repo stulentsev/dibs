@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { contactLabel, contactUrl } from '$lib/server/contact';
+import { buildContactUrl, contactLabel } from '$lib/server/contact';
 import { getPublicItem } from '$lib/server/db/queries';
 
 export async function load({ params, locals }) {
@@ -11,8 +11,14 @@ export async function load({ params, locals }) {
 
   return {
     ...record,
-    admin: locals.admin,
-    contactLabel: contactLabel(),
-    contactUrl: contactUrl(record.item)
+    canManage: locals.user?.role === 'owner' || locals.user?.id === record.item.ownerId,
+    contactLabel: contactLabel(record.seller.contactType),
+    contactUrl: buildContactUrl(
+      {
+        type: record.seller.contactType,
+        value: record.seller.contactValue
+      },
+      record.item
+    )
   };
 }

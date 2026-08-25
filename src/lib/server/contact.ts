@@ -1,19 +1,27 @@
 import { env } from './config';
+import type { ContactType } from './contact-method';
 
-export function contactLabel(): string {
-  return env('PUBLIC_CONTACT_LABEL');
+export function contactLabel(type: ContactType): string {
+  if (type === 'whatsapp') return 'Message seller on WhatsApp';
+  return 'Email seller';
 }
 
-export function contactUrl(item: { id: number; title: string }): string {
+export function buildContactUrl(
+  contact: {
+    type: ContactType;
+    value: string;
+  },
+  item: { id: number; title: string },
+): string {
   const siteUrl = env('PUBLIC_SITE_URL').replace(/\/$/, '');
   const itemUrl = `${siteUrl}/items/${item.id}`;
-  const template = env('PUBLIC_CONTACT_URL_TEMPLATE');
-  const title = encodeURIComponent(item.title);
-  const url = encodeURIComponent(itemUrl);
+  const message = `Hi, I'm interested in "${item.title}": ${itemUrl}`;
 
-  return template
-    .replaceAll('{title}', title)
-    .replaceAll('{url}', url)
-    .replaceAll('%7Btitle%7D', title)
-    .replaceAll('%7Burl%7D', url);
+  if (contact.type === 'whatsapp') {
+    return `https://wa.me/${contact.value.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+  }
+
+  const subject = encodeURIComponent(`Interested in ${item.title}`);
+  const address = encodeURIComponent(contact.value).replace('%40', '@');
+  return `mailto:${address}?subject=${subject}&body=${encodeURIComponent(message)}`;
 }

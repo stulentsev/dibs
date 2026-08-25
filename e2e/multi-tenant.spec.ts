@@ -1,0 +1,256 @@
+import { expect, test } from '@playwright/test';
+import {
+  adminCredentials,
+  resetCatalog,
+} from './db';
+
+async function logInAsOwner(page: import('@playwright/test').Page) {
+  const { identifier, password } = adminCredentials();
+
+  await page.goto('/admin/login');
+  await page.getByLabel('Username').fill(identifier);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+}
+
+async function fillAfterHydration(
+  page: import('@playwright/test').Page,
+  locator: import('@playwright/test').Locator,
+  value: string
+) {
+  await expect(async () => {
+    await locator.fill(value);
+    await page.waitForTimeout(150);
+    expect(await locator.inputValue()).toBe(value);
+  }).toPass();
+}
+
+async function createInviteLink(
+  page: import('@playwright/test').Page,
+  phone: string,
+): Promise<string> {
+  await page.goto('/admin/invites');
+  const links = page.locator('code.invite-link');
+  const count = await links.count();
+  await fillAfterHydration(page, page.getByLabel('Seller WhatsApp number'), phone);
+  await page.getByRole('button', { name: 'Create invite link' }).click();
+  await expect(links).toHaveCount(count + 1);
+  const link = links.first();
+  await expect(link).toBeVisible();
+  return (await link.textContent()) ?? '';
+}
+
+test('invite-only signup scopes tenants to their own items', async ({ browser }) => {
+  const items = await resetCatalog();
+
+  const ownerContext = await browser.newContext();
+  const ownerPage = await ownerContext.newPage();
+  await logInAsOwner(ownerPage);
+  const inviteLink = await createInviteLink(ownerPage, '+1 555 123 0001');
+  expect(inviteLink).toContain('/signup?token=');
+
+  const tenantContext = await browser.newContext();
+  const tenantPage = await tenantContext.newPage();
+
+  // A used-up or bogus token must not allow signup
+  await tenantPage.goto('/signup?token=not-a-real-token');
+  await expect(tenantPage.getByText('Invalid, expired, or already used', { exact: false })).toBeVisible();
+
+  await tenantPage.goto(inviteLink);
+  await expect(tenantPage.getByRole('heading', { name: 'Create your seller account' })).toBeVisible();
+
+  await tenantPage.getByLabel('Username').fill('tess');
+  await tenantPage.getByLabel(/Display name/).fill('Neighbor Tess');
+  await tenantPage.getByLabel(/^Password/).fill('supersafe123');
+  await tenantPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(tenantPage).toHaveURL(/\/admin$/);
+
+  // Identity is fixed by the invite, while profile fields and contact method are editable.
+  await tenantPage.getByRole('link', { name: 'Profile' }).click();
+  await expect(tenantPage.getByLabel('Account identity')).toHaveValue('+15551230001');
+  await expect(tenantPage.getByLabel('Contact value')).toHaveValue('+15551230001');
+  await fillAfterHydration(tenantPage, tenantPage.getByLabel('Username'), 'tess-shop');
+  await tenantPage.getByLabel('Contact method').selectOption('email');
+  await tenantPage.getByLabel('Contact value').fill('victim@example.com?bcc=attacker@example.com');
+  await tenantPage.getByRole('button', { name: 'Save profile' }).click();
+  await expect(tenantPage.getByText('Enter a valid email address.')).toBeVisible();
+  await expect(tenantPage.getByLabel('Contact value')).toHaveValue(
+    'victim@example.com?bcc=attacker@example.com',
+  );
+  await tenantPage.getByLabel('Contact value').fill('tess@example.com');
+  await tenantPage.getByRole('button', { name: 'Save profile' }).click();
+  await expect(tenantPage.getByText('Profile updated.')).toBeVisible();
+  await tenantPage.goto('/admin');
+
+  // Tenant sees an empty catalog, not the owner's items
+  await expect(tenantPage.getByRole('heading', { name: 'Items' })).toBeVisible();
+  await expect(tenantPage.getByText('No items yet.')).toBeVisible();
+
+  // Tenant cannot open the owner's item by id
+  const response = await tenantPage.goto(`/admin/items/${items.table}`);
+  expect(response?.status()).toBe(404);
+
+  // Tenant creates a published item
+  await tenantPage.goto('/admin/items/new');
+  await tenantPage.getByLabel('Title').fill('Tenant bike');
+  await tenantPage.getByLabel('Description').fill('A blue city bike.');
+  await tenantPage.getByLabel('Status').selectOption('available');
+  await tenantPage.getByLabel('Published').check();
+  await tenantPage.getByRole('button', { name: 'Create item' }).click();
+  await expect(tenantPage).toHaveURL(/\/admin\/items\/\d+$/);
+
+  const crossTenantDelete = await tenantPage.request.post('/admin?/deleteItem', {
+    form: { id: String(items.table) },
+    headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+  });
+  expect(await crossTenantDelete.json()).toMatchObject({ type: 'failure', status: 404 });
+
+  // Public catalog is shared: both sellers appear, tenant detail shows seller name
+  const publicPage = await tenantContext.newPage();
+  await publicPage.goto('/');
+  await expect(publicPage.getByRole('link', { name: /Oak side table/ })).toBeVisible();
+  await expect(publicPage.getByRole('link', { name: /Tenant bike/ })).toBeVisible();
+
+  await publicPage.getByRole('link', { name: /Oak side table/ }).click();
+  await expect(publicPage.getByRole('link', { name: 'Manage' })).toHaveCount(0);
+
+  await publicPage.goto('/');
+  await publicPage.getByRole('link', { name: /Tenant bike/ }).click();
+  await expect(publicPage.getByText('Offered by Neighbor Tess')).toBeVisible();
+  const contact = publicPage.getByRole('link', { name: 'Email seller' });
+  await expect(contact).toHaveAttribute('href', /^mailto:tess@example\.com\?/);
+  await expect(publicPage.getByRole('link', { name: 'Manage' })).toBeVisible();
+
+  await ownerPage.goto(publicPage.url());
+  await expect(ownerPage.getByRole('link', { name: 'Manage' })).toBeVisible();
+
+  // Owner still sees everything, including the tenant's item
+  await ownerPage.goto('/admin');
+  await expect(ownerPage.getByRole('heading', { name: 'Tenant bike' })).toBeVisible();
+
+  // Owner can disable the tenant; the tenant session is revoked immediately
+  await ownerPage.goto('/admin/tenants');
+  const row = ownerPage.locator('article').filter({ hasText: 'tess-shop' });
+  await expect(row.getByText('+15551230001')).toBeVisible();
+  const tenantId = await row.locator('input[name="id"]').first().getAttribute('value');
+  const malformedToggle = await ownerPage.request.post('/admin/tenants?/toggle', {
+    form: { id: tenantId!, status: 'unexpected' },
+    headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+  });
+  expect(await malformedToggle.json()).toMatchObject({ type: 'failure', status: 400 });
+  await expect(row.getByText('Active')).toBeVisible();
+
+  await row.getByRole('button', { name: 'Disable' }).click();
+  await expect(row.getByText('Disabled')).toBeVisible();
+
+  await tenantPage.goto('/admin');
+  await expect(tenantPage).toHaveURL(/\/admin\/login$/);
+
+  // Resetting credentials must not undo an administrative disable.
+  await row.getByRole('button', { name: 'Reset password' }).click();
+  const temporaryPassword = await ownerPage.locator('.success-note code').textContent();
+  expect(temporaryPassword).toBeTruthy();
+  await expect(row.getByText('Disabled')).toBeVisible();
+  await ownerPage.reload();
+  await expect(ownerPage.locator('.success-note')).toHaveCount(0);
+
+  await tenantPage.getByLabel('Username').fill('tess-shop');
+  await tenantPage.getByLabel('Password').fill(temporaryPassword!);
+  await tenantPage.getByRole('button', { name: 'Log in' }).click();
+  await expect(tenantPage.getByText('Invalid credentials.')).toBeVisible();
+
+  // Only the explicit Enable action restores access with the new password.
+  await row.getByRole('button', { name: 'Enable' }).click();
+  await expect(row.getByText('Active')).toBeVisible();
+  await tenantPage.getByLabel('Username').fill('tess-shop');
+  await tenantPage.getByLabel('Password').fill(temporaryPassword!);
+  await tenantPage.getByRole('button', { name: 'Log in' }).click();
+  await expect(tenantPage).toHaveURL(/\/admin$/);
+
+  await ownerContext.close();
+  await tenantContext.close();
+});
+
+test('an invite link cannot be used twice', async ({ browser }) => {
+  await resetCatalog();
+
+  const ownerContext = await browser.newContext();
+  const ownerPage = await ownerContext.newPage();
+  await logInAsOwner(ownerPage);
+  const inviteLink = await createInviteLink(ownerPage, '+1 555 123 0002');
+  await ownerContext.close();
+
+  const first = await browser.newContext();
+  const firstPage = await first.newPage();
+  await firstPage.goto(inviteLink);
+  await firstPage.getByLabel('Username').fill('first-seller');
+  await firstPage.getByLabel(/^Password/).fill('supersafe123');
+  await firstPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(firstPage).toHaveURL(/\/admin$/);
+  await first.close();
+
+  const second = await browser.newContext();
+  const secondPage = await second.newPage();
+  await secondPage.goto(inviteLink);
+  await expect(secondPage.getByText('Invalid, expired, or already used', { exact: false })).toBeVisible();
+  await second.close();
+});
+
+test('signup rejects passwords beyond bcrypt limit without consuming the invite', async ({ browser }) => {
+  await resetCatalog();
+
+  const ownerContext = await browser.newContext();
+  const ownerPage = await ownerContext.newPage();
+  await logInAsOwner(ownerPage);
+  const inviteLink = await createInviteLink(ownerPage, '+1 555 123 0003');
+  await ownerContext.close();
+
+  const tenantContext = await browser.newContext();
+  const tenantPage = await tenantContext.newPage();
+  await tenantPage.goto(inviteLink);
+  await tenantPage.getByLabel('Username').fill('long-password');
+  await tenantPage.getByLabel(/^Password/).fill('a'.repeat(73));
+  await tenantPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(tenantPage.getByText('Password must be at most 72 UTF-8 bytes.')).toBeVisible();
+
+  await tenantPage.getByLabel(/^Password/).fill('supersafe123');
+  await tenantPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(tenantPage).toHaveURL(/\/admin$/);
+  await tenantContext.close();
+});
+
+test('signup distinguishes an existing username and leaves the invite usable', async ({ browser }) => {
+  await resetCatalog();
+
+  const ownerContext = await browser.newContext();
+  const ownerPage = await ownerContext.newPage();
+  await logInAsOwner(ownerPage);
+  const firstInviteLink = await createInviteLink(ownerPage, '+1 555 123 0004');
+  const secondInviteLink = await createInviteLink(ownerPage, '+1 555 123 0005');
+  await ownerContext.close();
+
+  const firstContext = await browser.newContext();
+  const firstPage = await firstContext.newPage();
+  await firstPage.goto(firstInviteLink);
+  await firstPage.getByLabel('Username').fill('duplicate');
+  await firstPage.getByLabel(/^Password/).fill('supersafe123');
+  await firstPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(firstPage).toHaveURL(/\/admin$/);
+  await firstContext.close();
+
+  const secondContext = await browser.newContext();
+  const secondPage = await secondContext.newPage();
+  await secondPage.goto(secondInviteLink);
+  await secondPage.getByLabel('Username').fill('duplicate');
+  await secondPage.getByLabel(/^Password/).fill('supersafe123');
+  await secondPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(secondPage.getByText('That username is already taken.')).toBeVisible();
+
+  await secondPage.goto(secondInviteLink);
+  await fillAfterHydration(secondPage, secondPage.getByLabel('Username'), 'replacement');
+  await secondPage.getByLabel(/^Password/).fill('supersafe123');
+  await secondPage.getByRole('button', { name: 'Create account' }).click();
+  await expect(secondPage).toHaveURL(/\/admin$/);
+  await secondContext.close();
+});

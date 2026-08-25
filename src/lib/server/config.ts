@@ -4,8 +4,6 @@ const requiredKeys = [
   'SESSION_SECRET',
   'UPLOAD_DIR',
   'PUBLIC_SITE_URL',
-  'PUBLIC_CONTACT_LABEL',
-  'PUBLIC_CONTACT_URL_TEMPLATE'
 ] as const;
 
 type RequiredKey = (typeof requiredKeys)[number];
@@ -22,13 +20,22 @@ export function optionalEnv(name: string): string | undefined {
   return process.env[name] || undefined;
 }
 
-export function requireRuntimeEnv(): void {
-  for (const key of requiredKeys) env(key);
-  if (!getAdminIdentifier()) {
-    throw new Error('Missing required environment variable: ADMIN_EMAIL or ADMIN_USERNAME');
-  }
+export function normalizeUsername(value: string): string {
+  return value.trim().toLowerCase();
 }
 
-export function getAdminIdentifier(): string | null {
-  return optionalEnv('ADMIN_EMAIL') ?? optionalEnv('ADMIN_USERNAME') ?? null;
+export function usernameError(value: string): string | null {
+  const username = normalizeUsername(value);
+  if (username.length < 3 || username.length > 64) {
+    return 'Username must be between 3 and 64 characters.';
+  }
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(username)) {
+    return 'Username may contain lowercase letters, numbers, dots, underscores, and hyphens.';
+  }
+  return null;
+}
+
+export function getAdminUsername(): string | null {
+  const username = optionalEnv('ADMIN_USERNAME')?.trim();
+  return username ? normalizeUsername(username) : null;
 }

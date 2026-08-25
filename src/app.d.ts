@@ -1,7 +1,9 @@
+import type { SessionUser } from '$lib/server/auth';
+
 declare global {
   namespace App {
     interface Locals {
-      admin: { identifier: string } | null;
+      user: SessionUser | null;
     }
   }
 }

@@ -1,21 +1,19 @@
 import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
-import { getAdminIdentifier, verifySessionCookie } from '$lib/server/auth';
+import { cookieName, readSessionToken } from '$lib/server/auth';
+import { loadSessionUser } from '$lib/server/users';
 
 export const handle: Handle = async ({ event, resolve }) => {
-  const token = event.cookies.get('dibs_admin');
-  const identifier = getAdminIdentifier();
+  const token = event.cookies.get(cookieName);
+  const payload = token ? readSessionToken(token) : null;
 
-  event.locals.admin =
-    token && identifier && verifySessionCookie(token, identifier)
-      ? { identifier }
-      : null;
+  event.locals.user = payload ? await loadSessionUser(payload) : null;
 
   const path = event.url.pathname;
   const isAdminRoute = path === '/admin' || path.startsWith('/admin/');
   const isLoginRoute = path === '/admin/login' || path.startsWith('/admin/login/');
 
-  if (isAdminRoute && !isLoginRoute && !event.locals.admin) {
+  if (isAdminRoute && !isLoginRoute && !event.locals.user) {
     redirect(303, '/admin/login');
   }
 

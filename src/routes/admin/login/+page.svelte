@@ -11,9 +11,9 @@
     <h1>Admin login</h1>
     {#if form?.error}
       <p class="error">{form.error}</p>
-    {/if}
-    <label>
-      Email or username
+      {/if}
+      <label>
+        Username
       <input name="identifier" autocomplete="username" required />
     </label>
     <label>

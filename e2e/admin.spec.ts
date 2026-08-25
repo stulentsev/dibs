@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { adminCredentials, resetCatalog } from './db';
+import { adminCredentials, clearOwnerContact, resetCatalog } from './db';
 
 async function logIn(page: import('@playwright/test').Page) {
   const { identifier, password } = adminCredentials();
 
   await page.goto('/admin/login');
-  await page.getByLabel('Email or username').fill(identifier);
+  await page.getByLabel('Username').fill(identifier);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Log in' }).click();
   await expect(page).toHaveURL(/\/admin$/);
@@ -64,6 +64,21 @@ test('admin can create a published item and it appears publicly', async ({ page 
   await expect(card.getByText('Free')).toBeVisible();
 });
 
+test('admin must configure contact before publishing', async ({ page }) => {
+  await clearOwnerContact();
+  await logIn(page);
+
+  await page.goto('/admin/items/new');
+  await page.getByLabel('Title').fill('Contactless listing');
+  await page.getByLabel('Description').fill('Should remain unpublished.');
+  await page.getByLabel('Status').selectOption('available');
+  await page.getByLabel('Published').check();
+  await page.getByRole('button', { name: 'Create item' }).click();
+
+  await expect(page.getByText('Add a contact method to your profile before publishing an item.')).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/items\/new$/);
+});
+
 test('admin can edit an item from the admin list', async ({ page }) => {
   await logIn(page);
 
@@ -113,7 +128,9 @@ test('admin can claim an item from its quick actions', async ({ page }) => {
   ]);
 
   await page.goto('/');
-  await expect(page.getByRole('link', { name: /Oak side table/ })).toHaveCount(0);
+  const publicCard = page.getByRole('link', { name: /Oak side table/ });
+  await expect(publicCard).toBeVisible();
+  await expect(publicCard.getByText('Temporarily reserved', { exact: false })).toBeVisible();
 });
 
 test('admin can unclaim or mark a claimed item as gone from quick actions', async ({ page }) => {
@@ -144,7 +161,8 @@ test('admin can change status from the item details page', async ({ page }) => {
   await expect(page.getByText('Item saved.')).toBeVisible();
 
   await page.goto(`/items/${items.table}`);
-  await expect(page.getByText('Gone')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Oak side table' })).toBeVisible();
+  await expect(page.getByText('Gone')).toHaveCount(0);
 
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Oak side table/ })).toHaveCount(0);

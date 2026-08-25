@@ -31,6 +31,9 @@
         <h1>{data.item.title}</h1>
         <strong>{formatPrice(data.item)}</strong>
       </div>
+      {#if data.seller.name}
+        <p class="muted">Offered by {data.seller.name}</p>
+      {/if}
       {#if data.item.category}
         <div class="meta-row">
           <span>{data.item.category}</span>
@@ -50,7 +53,7 @@
         <a class="button primary" href={data.contactUrl} rel="noreferrer" target="_blank">
           {data.contactLabel}
         </a>
-        {#if data.admin}
+        {#if data.canManage}
           <a class="button" href={`/admin/items/${data.item.id}`}>Manage</a>
         {/if}
       </div>
