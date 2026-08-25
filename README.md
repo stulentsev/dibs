@@ -71,7 +71,6 @@ Sellers only ever see and manage their own items. All published items appear tog
 ```sh
 pnpm db:generate  # generate Drizzle migrations from schema changes
 pnpm db:migrate   # apply migrations
-pnpm db:seed      # optional sample items
 ```
 
 ## Docker Compose

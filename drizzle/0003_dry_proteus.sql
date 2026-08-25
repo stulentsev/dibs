@@ -40,8 +40,8 @@ CREATE TABLE "users" (
 );
 --> statement-breakpoint
 ALTER TABLE "items" ADD COLUMN "owner_id" integer;--> statement-breakpoint
-INSERT INTO "users" ("identity", "username", "password_hash", "role", "bootstrap_pending", "status")
-VALUES ('owner', 'legacy-owner', '!migrated-owner-claim-on-first-boot', 'owner', true, 'active');--> statement-breakpoint
+INSERT INTO "users" ("identity", "username", "password_hash", "role", "contact_type", "contact_value", "bootstrap_pending", "status")
+VALUES ('owner', 'legacy-owner', '!migrated-owner-claim-on-first-boot', 'owner', 'whatsapp', '+353871643834', true, 'active');--> statement-breakpoint
 UPDATE "items" SET "owner_id" = (SELECT "id" FROM "users" WHERE "identity" = 'owner') WHERE "owner_id" IS NULL;--> statement-breakpoint
 ALTER TABLE "items" ALTER COLUMN "owner_id" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "invites" ADD CONSTRAINT "invites_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

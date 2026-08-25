@@ -341,7 +341,6 @@ Required npm scripts:
 - `npm run build`
 - Drizzle migration generation script
 - Drizzle migration apply script
-- optional seed script with sample items
 
 TypeScript should be used throughout.
 
@@ -355,7 +354,6 @@ Required:
 - migration generation setup
 - migration apply script
 - database access layer
-- optional seed script with a few sample items
 
 Migrations must be suitable for local Docker Compose and Coolify deployment workflows.
 
